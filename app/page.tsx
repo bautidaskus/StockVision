@@ -1,101 +1,77 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { SearchBar } from '@/components/search-bar'
+import { WatchlistCard } from '@/components/watchlist-card'
+import { useWatchlist } from '@/lib/store/watchlist'
+import { TrendingUp, Eye } from 'lucide-react'
+
+export default function HomePage() {
+  const items = useWatchlist((s) => s.items)
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="space-y-10">
+      {/* Hero */}
+      <div className="text-center space-y-4 pt-8">
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <TrendingUp className="w-10 h-10 text-primary" />
+          <h1 className="text-4xl font-bold tracking-tight">StockVision</h1>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+          Análisis de inversiones con inteligencia artificial. Buscá cualquier acción, ETF o criptomoneda.
+        </p>
+        <div className="pt-4">
+          <SearchBar />
+        </div>
+      </div>
+
+      {/* Watchlist */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Watchlist</h2>
+          <span className="text-sm text-muted-foreground">({items.length})</span>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-lg">
+            <Eye className="w-8 h-8 mx-auto mb-3 opacity-50" />
+            <p>Tu watchlist está vacía.</p>
+            <p className="text-sm mt-1">Buscá un activo y agregalo con la estrella.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {items.map((item) => (
+              <WatchlistCard key={item.ticker} item={item} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Access */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Acceso Rápido</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { ticker: 'AAPL', name: 'Apple', type: 'stock' as const },
+            { ticker: 'MSFT', name: 'Microsoft', type: 'stock' as const },
+            { ticker: 'GOOGL', name: 'Alphabet', type: 'stock' as const },
+            { ticker: 'AMZN', name: 'Amazon', type: 'stock' as const },
+            { ticker: 'TSLA', name: 'Tesla', type: 'stock' as const },
+            { ticker: 'NVDA', name: 'NVIDIA', type: 'stock' as const },
+            { ticker: 'bitcoin', name: 'Bitcoin', type: 'crypto' as const },
+            { ticker: 'ethereum', name: 'Ethereum', type: 'crypto' as const },
+          ].map((item) => (
+            <a
+              key={item.ticker}
+              href={item.type === 'crypto' ? `/crypto/${item.ticker}` : `/stock/${item.ticker}`}
+              className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/40 transition-colors"
+            >
+              <div className="font-mono-numbers font-semibold text-sm">{item.ticker.toUpperCase()}</div>
+              <div className="text-xs text-muted-foreground">{item.name}</div>
+            </a>
+          ))}
+        </div>
+      </div>
     </div>
-  );
+  )
 }
