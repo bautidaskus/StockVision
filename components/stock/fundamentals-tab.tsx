@@ -164,7 +164,7 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
             <BarChart data={epsChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a2a35" />
               <XAxis dataKey="quarter" tick={{ fill: '#71717a', fontSize: 11 }} />
-              <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => `$${v.toFixed(2)}`} />
+              <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => v != null && !isNaN(v) ? `$${v.toFixed(2)}` : ''} />
               <Tooltip
                 {...tooltipStyle}
                 formatter={(value) => [formatCurrency(Number(value)), 'EPS']}

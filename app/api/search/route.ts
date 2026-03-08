@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchTicker } from '@/lib/apis/fmp'
+import { searchTicker, getQuote } from '@/lib/apis/fmp'
 import { searchCoins } from '@/lib/apis/coingecko'
 
 export async function GET(request: NextRequest) {
@@ -51,8 +51,22 @@ export async function GET(request: NextRequest) {
         image: (c.thumb as string) || '',
       }))
 
-    // Always show stocks first, then crypto
-    return NextResponse.json([...stockResults, ...cryptoResults])
+    // If FMP search returned nothing, try direct ticker lookup (works on free tier)
+    if (stockResults.length === 0 && /^[A-Za-z.]{1,5}$/.test(query)) {
+      const quote = await getQuote(query.toUpperCase()).catch(() => null)
+      if (quote?.symbol) {
+        stockResults.push({
+          ticker: quote.symbol,
+          name: quote.name || query.toUpperCase(),
+          type: 'stock' as const,
+          exchange: quote.exchange || '',
+        })
+      }
+    }
+
+    // Always show stocks first; limit crypto when stocks are present
+    const cryptoLimit = stockResults.length > 0 ? 2 : 4
+    return NextResponse.json([...stockResults, ...cryptoResults.slice(0, cryptoLimit)])
   } catch (error) {
     console.error('Search error:', error)
     return NextResponse.json([])

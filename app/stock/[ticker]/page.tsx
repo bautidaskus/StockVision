@@ -17,7 +17,7 @@ export default function StockPage() {
     <div className="space-y-6">
       <StockHeader ticker={ticker} />
 
-      <Tabs defaultValue="chart" className="w-full">
+      <Tabs defaultValue="chart" className="w-full flex-col">
         <TabsList className="bg-card border border-border w-full justify-start">
           <TabsTrigger value="chart" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <LineChart className="w-4 h-4" />

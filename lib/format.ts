@@ -1,4 +1,5 @@
 export function formatCurrency(value: number, decimals = 2): string {
+  if (value == null || isNaN(value)) return 'N/A'
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -8,6 +9,7 @@ export function formatCurrency(value: number, decimals = 2): string {
 }
 
 export function formatLargeNumber(num: number): string {
+  if (num == null || isNaN(num)) return 'N/A'
   if (Math.abs(num) >= 1e12) return (num / 1e12).toFixed(2) + 'T'
   if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B'
   if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M'
