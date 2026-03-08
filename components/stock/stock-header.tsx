@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Star, StarOff } from 'lucide-react'
 import { useWatchlist } from '@/lib/store/watchlist'
-import { formatCurrency, formatLargeNumber, formatPercent, colorForValue } from '@/lib/format'
+import { formatCurrency, formatLargeNumber, formatPercent, colorForValue, safeFixed } from '@/lib/format'
 import type { StockOverview } from '@/lib/types'
 
 export function StockHeader({ ticker }: { ticker: string }) {
@@ -93,12 +93,12 @@ export function StockHeader({ ticker }: { ticker: string }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
         <MetricItem label="Market Cap" value={`$${formatLargeNumber(overview.marketCap)}`} />
-        <MetricItem label="P/E Ratio" value={overview.pe?.toFixed(2) ?? 'N/A'} />
+        <MetricItem label="P/E Ratio" value={safeFixed(overview.pe)} />
         <MetricItem label="EPS" value={overview.eps ? formatCurrency(overview.eps) : 'N/A'} />
-        <MetricItem label="Beta" value={overview.beta?.toFixed(2) ?? 'N/A'} />
+        <MetricItem label="Beta" value={safeFixed(overview.beta)} />
         <MetricItem label="52W High" value={formatCurrency(overview.week52High)} />
         <MetricItem label="52W Low" value={formatCurrency(overview.week52Low)} />
-        <MetricItem label="Div Yield" value={overview.dividendYield ? `${(overview.dividendYield * 100).toFixed(2)}%` : 'N/A'} />
+        <MetricItem label="Div Yield" value={overview.dividendYield != null && !isNaN(overview.dividendYield) ? `${(overview.dividendYield * 100).toFixed(2)}%` : 'N/A'} />
         <MetricItem label="Shares Out" value={formatLargeNumber(overview.sharesOutstanding)} />
       </div>
     </div>

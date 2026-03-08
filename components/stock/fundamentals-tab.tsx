@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { formatCurrency, formatLargeNumber, formatQuarter } from '@/lib/format'
+import { formatCurrency, formatLargeNumber, formatQuarter, safeFixed } from '@/lib/format'
 import type { StockOverview } from '@/lib/types'
 
 export function FundamentalsTab({ ticker }: { ticker: string }) {
@@ -70,12 +70,12 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Valuación</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <MetricCard label="P/E" value={overview?.pe?.toFixed(2) ?? 'N/A'} />
-          <MetricCard label="Forward P/E" value={overview?.forwardPe?.toFixed(2) ?? 'N/A'} />
-          <MetricCard label="EV/EBITDA" value={overview?.evToEbitda?.toFixed(2) ?? 'N/A'} />
-          <MetricCard label="P/S" value={overview?.priceToSales?.toFixed(2) ?? 'N/A'} />
-          <MetricCard label="P/B" value={overview?.priceToBook?.toFixed(2) ?? 'N/A'} />
-          <MetricCard label="PEG" value={overview?.pegRatio?.toFixed(2) ?? 'N/A'} />
+          <MetricCard label="P/E" value={safeFixed(overview?.pe)} />
+          <MetricCard label="Forward P/E" value={safeFixed(overview?.forwardPe)} />
+          <MetricCard label="EV/EBITDA" value={safeFixed(overview?.evToEbitda)} />
+          <MetricCard label="P/S" value={safeFixed(overview?.priceToSales)} />
+          <MetricCard label="P/B" value={safeFixed(overview?.priceToBook)} />
+          <MetricCard label="PEG" value={safeFixed(overview?.pegRatio)} />
         </div>
       </div>
 

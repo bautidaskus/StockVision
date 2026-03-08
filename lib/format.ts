@@ -18,8 +18,14 @@ export function formatLargeNumber(num: number): string {
 }
 
 export function formatPercent(value: number | null, decimals = 2): string {
-  if (value === null || value === undefined) return 'N/A'
+  if (value == null || isNaN(value)) return 'N/A'
   return `${value >= 0 ? '+' : ''}${value.toFixed(decimals)}%`
+}
+
+export function safeFixed(value: unknown, decimals = 2): string {
+  const n = Number(value)
+  if (value == null || isNaN(n)) return 'N/A'
+  return n.toFixed(decimals)
 }
 
 export function formatQuarter(dateStr: string): string {
