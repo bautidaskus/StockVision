@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getQuote, getProfile } from '@/lib/apis/fmp'
 import { getOverview, getGlobalQuote } from '@/lib/apis/alphavantage'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 import type { StockOverview } from '@/lib/types'
@@ -15,21 +16,79 @@ export async function GET(
     const cached = await getCached<StockOverview>(key)
     if (cached) return NextResponse.json(cached)
 
-    // Fetch from Alpha Vantage
+    // Try FMP first (250 req/day vs Alpha Vantage's 25/day)
+    let result = await fetchFromFMP(ticker)
+
+    // Fallback to Alpha Vantage if FMP fails
+    if (!result) {
+      result = await fetchFromAlphaVantage(ticker)
+    }
+
+    if (!result) {
+      return NextResponse.json({ error: 'Ticker not found' }, { status: 404 })
+    }
+
+    await setCached(key, result, CACHE_TTL.OVERVIEW)
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error('Overview error:', error)
+    const message = error instanceof Error ? error.message : 'Failed to fetch overview'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+async function fetchFromFMP(ticker: string): Promise<StockOverview | null> {
+  try {
+    const [quote, profile] = await Promise.all([
+      getQuote(ticker),
+      getProfile(ticker),
+    ])
+
+    if (!quote || !quote.symbol) return null
+
+    return {
+      ticker: quote.symbol,
+      name: quote.name || profile?.companyName || ticker,
+      sector: profile?.sector || 'N/A',
+      industry: profile?.industry || 'N/A',
+      description: profile?.description || '',
+      price: quote.price || 0,
+      change: quote.change || 0,
+      changePercent: quote.changesPercentage || 0,
+      marketCap: quote.marketCap || 0,
+      pe: quote.pe || null,
+      forwardPe: profile?.forwardPE || null,
+      eps: quote.eps || null,
+      dividendYield: profile?.lastDiv ? profile.lastDiv / quote.price : null,
+      beta: profile?.beta || null,
+      week52High: quote.yearHigh || 0,
+      week52Low: quote.yearLow || 0,
+      sharesOutstanding: quote.sharesOutstanding || 0,
+      evToEbitda: null, // Will be filled from key metrics if available
+      priceToSales: profile?.priceToSalesRatio || null,
+      priceToBook: profile?.priceToBookRatio || null,
+      pegRatio: null,
+    }
+  } catch (error) {
+    console.warn('FMP overview failed:', error)
+    return null
+  }
+}
+
+async function fetchFromAlphaVantage(ticker: string): Promise<StockOverview | null> {
+  try {
     const [overview, quote] = await Promise.all([
       getOverview(ticker),
       getGlobalQuote(ticker),
     ])
 
-    if (!overview || !overview.Symbol) {
-      return NextResponse.json({ error: 'Ticker not found' }, { status: 404 })
-    }
+    if (!overview || !overview.Symbol) return null
 
     const price = parseFloat(quote?.['05. price'] || overview.AnalystTargetPrice || '0')
     const change = parseFloat(quote?.['09. change'] || '0')
     const changePercent = parseFloat((quote?.['10. change percent'] || '0').replace('%', ''))
 
-    const result: StockOverview = {
+    return {
       ticker: overview.Symbol,
       name: overview.Name || ticker,
       sector: overview.Sector || 'N/A',
@@ -52,13 +111,9 @@ export async function GET(
       priceToBook: parseFloatOrNull(overview.PriceToBookRatio),
       pegRatio: parseFloatOrNull(overview.PEGRatio),
     }
-
-    await setCached(key, result, CACHE_TTL.OVERVIEW)
-    return NextResponse.json(result)
   } catch (error) {
-    console.error('Overview error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to fetch overview'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.warn('Alpha Vantage overview failed:', error)
+    return null
   }
 }
 

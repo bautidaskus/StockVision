@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRSI, getMACD, getSMA } from '@/lib/apis/alphavantage'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
-import type { TechnicalIndicators } from '@/lib/types'
+import { calculateIndicators } from '@/lib/indicators'
+import type { TechnicalIndicators, OHLCV } from '@/lib/types'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { ticker: string } }
 ) {
   const ticker = params.ticker.toUpperCase()
@@ -14,65 +14,34 @@ export async function GET(
     const cached = await getCached<TechnicalIndicators>(key)
     if (cached) return NextResponse.json(cached)
 
-    // Fetch all indicators in parallel (4 API calls)
-    const [rsiData, macdData, sma20Data, sma50Data, sma200Data] = await Promise.all([
-      getRSI(ticker),
-      getMACD(ticker),
-      getSMA(ticker, 20),
-      getSMA(ticker, 50),
-      getSMA(ticker, 200),
-    ])
-
-    const maxPoints = 200
-
-    const result: TechnicalIndicators = {
-      rsi: Object.entries(rsiData)
-        .slice(0, maxPoints)
-        .map(([date, val]) => ({
-          date,
-          value: parseFloat((val as Record<string, string>).RSI),
-        }))
-        .reverse(),
-      macd: Object.entries(macdData)
-        .slice(0, maxPoints)
-        .map(([date, val]) => {
-          const v = val as Record<string, string>
-          return {
-            date,
-            macd: parseFloat(v['MACD']),
-            signal: parseFloat(v['MACD_Signal']),
-            histogram: parseFloat(v['MACD_Hist']),
-          }
-        })
-        .reverse(),
-      sma20: Object.entries(sma20Data)
-        .slice(0, maxPoints)
-        .map(([date, val]) => ({
-          date,
-          value: parseFloat((val as Record<string, string>).SMA),
-        }))
-        .reverse(),
-      sma50: Object.entries(sma50Data)
-        .slice(0, maxPoints)
-        .map(([date, val]) => ({
-          date,
-          value: parseFloat((val as Record<string, string>).SMA),
-        }))
-        .reverse(),
-      sma200: Object.entries(sma200Data)
-        .slice(0, maxPoints)
-        .map(([date, val]) => ({
-          date,
-          value: parseFloat((val as Record<string, string>).SMA),
-        }))
-        .reverse(),
+    // Get price history (from our own API route which uses FMP/AV with cache)
+    const baseUrl = request.nextUrl.origin
+    const historyRes = await fetch(`${baseUrl}/api/stock/${ticker}/history?range=5y`)
+    if (!historyRes.ok) {
+      return NextResponse.json({ error: 'Could not fetch price data for indicators' }, { status: 500 })
     }
+
+    const prices: OHLCV[] = await historyRes.json()
+    if (!prices || prices.length < 30) {
+      return NextResponse.json({ error: 'Not enough price data for indicators' }, { status: 404 })
+    }
+
+    // Calculate all indicators locally from price data (0 external API calls!)
+    const result = calculateIndicators(prices)
+
+    // Limit to last 200 data points for each indicator
+    const maxPoints = 200
+    result.rsi = result.rsi.slice(-maxPoints)
+    result.macd = result.macd.slice(-maxPoints)
+    result.sma20 = result.sma20.slice(-maxPoints)
+    result.sma50 = result.sma50.slice(-maxPoints)
+    result.sma200 = result.sma200.slice(-maxPoints)
 
     await setCached(key, result, CACHE_TTL.INDICATORS)
     return NextResponse.json(result)
   } catch (error) {
     console.error('Indicators error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to fetch indicators'
+    const message = error instanceof Error ? error.message : 'Failed to calculate indicators'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
