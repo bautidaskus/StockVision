@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
   // Allow these paths without auth
   if (
     pathname === '/login' ||
-    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.includes('.')

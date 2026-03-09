@@ -98,6 +98,7 @@ export async function getYahooFinancials(ticker: string, period: 'quarterly' | '
       'balanceSheetHistoryQuarterly',
       'cashflowStatementHistory',
       'cashflowStatementHistoryQuarterly',
+      'earningsHistory',
     ],
   })
 
@@ -115,18 +116,31 @@ export async function getYahooFinancials(ticker: string, period: 'quarterly' | '
     ? result.cashflowStatementHistoryQuarterly?.cashflowStatements || []
     : result.cashflowStatementHistory?.cashflowStatements || []
 
+  // Build EPS lookup by quarter date from earningsHistory
+  const earningsData: any[] = result.earningsHistory?.earningsHistoryData || []
+  const epsMap: Record<string, number> = {}
+  for (const e of earningsData) {
+    const date = e.quarter instanceof Date
+      ? e.quarter.toISOString().split('T')[0]
+      : String(e.quarter || '')
+    if (date && e.epsActual != null) {
+      epsMap[date] = Number(e.epsActual)
+    }
+  }
+
   // Merge into combined statements (most recent first from Yahoo)
   const statements = incomeStatements.slice(0, limit).map((inc: any, i: number) => {
     const bal: any = balanceSheets[i] || {}
     const cf: any = cashFlows[i] || {}
 
+    const incDate = inc.endDate instanceof Date ? inc.endDate.toISOString().split('T')[0] : String(inc.endDate)
     const revenue = Number(inc.totalRevenue) || 0
     const grossProfit = Number(inc.grossProfit) || 0
     const netIncome = Number(inc.netIncome) || 0
     const totalEquity = Number(bal.totalStockholderEquity) || 0
 
     return {
-      date: inc.endDate instanceof Date ? inc.endDate.toISOString().split('T')[0] : String(inc.endDate),
+      date: incDate,
       period: isQuarterly ? 'Q' : 'FY',
       revenue,
       costOfRevenue: Number(inc.costOfRevenue) || 0,
@@ -135,8 +149,8 @@ export async function getYahooFinancials(ticker: string, period: 'quarterly' | '
       operatingIncome: Number(inc.operatingIncome) || 0,
       netIncome,
       netIncomeRatio: revenue > 0 ? netIncome / revenue : 0,
-      eps: 0,
-      epsDiluted: 0,
+      eps: epsMap[incDate] ?? (revenue > 0 && inc.netIncome ? Number(inc.netIncome) / (Number(inc.basicAverageShares) || 1) : 0),
+      epsDiluted: epsMap[incDate] ?? (revenue > 0 && inc.netIncome ? Number(inc.netIncome) / (Number(inc.dilutedAverageShares) || Number(inc.basicAverageShares) || 1) : 0),
       ebitda: Number(inc.ebitda) || 0,
       totalAssets: Number(bal.totalAssets) || 0,
       totalLiabilities: Number(bal.totalLiab) || 0,
