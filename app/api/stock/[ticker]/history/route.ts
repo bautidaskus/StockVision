@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getHistoricalPriceFull } from '@/lib/apis/fmp'
+import { getYahooHistory } from '@/lib/apis/yahoo'
 import { getDailyTimeSeries } from '@/lib/apis/alphavantage'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 import type { OHLCV } from '@/lib/types'
@@ -27,10 +27,10 @@ export async function GET(
     let allPrices = await getCached<OHLCV[]>(key)
 
     if (!allPrices) {
-      // Try FMP first
-      allPrices = await fetchFromFMP(ticker)
+      // Primary: Yahoo Finance (no API key needed, generous limits)
+      allPrices = await fetchFromYahoo(ticker)
 
-      // Fallback to Alpha Vantage
+      // Last resort: Alpha Vantage (25 req/day)
       if (!allPrices || allPrices.length === 0) {
         allPrices = await fetchFromAlphaVantage(ticker)
       }
@@ -59,21 +59,13 @@ export async function GET(
   }
 }
 
-async function fetchFromFMP(ticker: string): Promise<OHLCV[] | null> {
+async function fetchFromYahoo(ticker: string): Promise<OHLCV[] | null> {
   try {
-    const historical = await getHistoricalPriceFull(ticker)
-    if (!historical || historical.length === 0) return null
-
-    return historical.map((d: Record<string, unknown>) => ({
-      date: String(d.date),
-      open: Number(d.open) || 0,
-      high: Number(d.high) || 0,
-      low: Number(d.low) || 0,
-      close: Number(d.close) || 0,
-      volume: Number(d.volume) || 0,
-    })).sort((a: OHLCV, b: OHLCV) => a.date.localeCompare(b.date))
+    const history = await getYahooHistory(ticker, 5)
+    if (!history || history.length === 0) return null
+    return history
   } catch (error) {
-    console.warn('FMP history failed:', error)
+    console.warn('Yahoo history failed:', error)
     return null
   }
 }

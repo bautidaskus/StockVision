@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getQuote, getProfile } from '@/lib/apis/fmp'
+import { getQuoteFinnhub, getBasicFinancials } from '@/lib/apis/finnhub'
+import { getYahooQuote } from '@/lib/apis/yahoo'
 import { getOverview, getGlobalQuote } from '@/lib/apis/alphavantage'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 import type { StockOverview } from '@/lib/types'
@@ -16,10 +17,10 @@ export async function GET(
     const cached = await getCached<StockOverview>(key)
     if (cached) return NextResponse.json(cached)
 
-    // Try FMP first (250 req/day vs Alpha Vantage's 25/day)
-    let result = await fetchFromFMP(ticker)
+    // Try Finnhub + Yahoo first
+    let result = await fetchFromFinnhubYahoo(ticker)
 
-    // Fallback to Alpha Vantage if FMP fails
+    // Fallback to Alpha Vantage if both fail
     if (!result) {
       result = await fetchFromAlphaVantage(ticker)
     }
@@ -37,40 +38,48 @@ export async function GET(
   }
 }
 
-async function fetchFromFMP(ticker: string): Promise<StockOverview | null> {
+async function fetchFromFinnhubYahoo(ticker: string): Promise<StockOverview | null> {
   try {
-    const [quote, profile] = await Promise.all([
-      getQuote(ticker),
-      getProfile(ticker),
+    // Finnhub for real-time price + basic metrics, Yahoo for profile
+    const [finnhubQuote, finnhubMetrics, yahooData] = await Promise.all([
+      getQuoteFinnhub(ticker).catch(() => null),
+      getBasicFinancials(ticker).catch(() => null),
+      getYahooQuote(ticker).catch(() => null),
     ])
 
-    if (!quote || !quote.symbol) return null
+    // Need at least Finnhub quote or Yahoo data
+    if (!finnhubQuote?.price && !yahooData?.price) return null
+
+    // Prefer Finnhub for real-time price, Yahoo for profile/valuation
+    const price = finnhubQuote?.price || yahooData?.price || 0
+    const change = finnhubQuote?.change || yahooData?.change || 0
+    const changePercent = finnhubQuote?.changePercent || yahooData?.changePercent || 0
 
     return {
-      ticker: quote.symbol,
-      name: quote.name || profile?.companyName || ticker,
-      sector: profile?.sector || 'N/A',
-      industry: profile?.industry || 'N/A',
-      description: profile?.description || '',
-      price: quote.price || 0,
-      change: quote.change || 0,
-      changePercent: quote.changesPercentage || 0,
-      marketCap: quote.marketCap || 0,
-      pe: quote.pe || null,
-      forwardPe: profile?.forwardPE || null,
-      eps: quote.eps || null,
-      dividendYield: profile?.lastDiv ? profile.lastDiv / quote.price : null,
-      beta: profile?.beta || null,
-      week52High: quote.yearHigh || 0,
-      week52Low: quote.yearLow || 0,
-      sharesOutstanding: quote.sharesOutstanding || 0,
-      evToEbitda: null, // Will be filled from key metrics if available
-      priceToSales: profile?.priceToSalesRatio || null,
-      priceToBook: profile?.priceToBookRatio || null,
-      pegRatio: null,
+      ticker: yahooData?.symbol || ticker,
+      name: yahooData?.name || ticker,
+      sector: yahooData?.sector || 'N/A',
+      industry: yahooData?.industry || 'N/A',
+      description: yahooData?.description || '',
+      price,
+      change,
+      changePercent,
+      marketCap: finnhubMetrics?.marketCap || yahooData?.marketCap || 0,
+      pe: yahooData?.pe || finnhubMetrics?.pe || null,
+      forwardPe: yahooData?.forwardPe || null,
+      eps: yahooData?.eps || finnhubMetrics?.eps || null,
+      dividendYield: yahooData?.dividendYield || finnhubMetrics?.dividendYield || null,
+      beta: yahooData?.beta || finnhubMetrics?.beta || null,
+      week52High: finnhubMetrics?.week52High || yahooData?.week52High || 0,
+      week52Low: finnhubMetrics?.week52Low || yahooData?.week52Low || 0,
+      sharesOutstanding: finnhubMetrics?.sharesOutstanding || yahooData?.sharesOutstanding || 0,
+      evToEbitda: yahooData?.enterpriseToEbitda || null,
+      priceToSales: finnhubMetrics?.priceToSales || null,
+      priceToBook: finnhubMetrics?.priceToBook || yahooData?.priceToBook || null,
+      pegRatio: yahooData?.pegRatio || null,
     }
   } catch (error) {
-    console.warn('FMP overview failed:', error)
+    console.warn('Finnhub+Yahoo overview failed:', error)
     return null
   }
 }

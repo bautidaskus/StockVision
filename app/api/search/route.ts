@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchTicker, getQuote } from '@/lib/apis/fmp'
+import { searchSymbols } from '@/lib/apis/finnhub'
+import { searchYahoo } from '@/lib/apis/yahoo'
 import { searchCoins } from '@/lib/apis/coingecko'
 
 export async function GET(request: NextRequest) {
@@ -9,10 +10,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Search both APIs in parallel
-    const [fmpResults, cryptoResult] = await Promise.all([
-      searchTicker(query, 8).catch((err) => {
-        console.warn('FMP search failed:', err)
+    // Search stocks (Finnhub) and crypto (CoinGecko) in parallel
+    const [finnhubResults, cryptoResult] = await Promise.all([
+      searchSymbols(query).catch((err) => {
+        console.warn('Finnhub search failed:', err)
         return []
       }),
       searchCoins(query).catch((err) => {
@@ -21,23 +22,27 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    // Process FMP stock results
-    const stockResults = (Array.isArray(fmpResults) ? fmpResults : [])
-      .filter((s: Record<string, string>) => {
-        // Filter out OTC, crypto-like tickers, and non-equity items
-        const exchange = (s.stockExchange || s.exchangeShortName || '').toUpperCase()
-        return s.symbol &&
-          !exchange.includes('CRYPTO') &&
-          !exchange.includes('PNK') &&
-          s.symbol.length <= 5
-      })
+    // Process Finnhub stock results
+    let stockResults = (Array.isArray(finnhubResults) ? finnhubResults : [])
+      .filter((s: { symbol: string; name: string }) => s.symbol && s.symbol.length <= 5 && !s.symbol.includes('.'))
       .slice(0, 6)
-      .map((s: Record<string, string>) => ({
+      .map((s: { symbol: string; name: string }) => ({
         ticker: s.symbol,
-        name: s.name,
+        name: s.name || s.symbol,
         type: 'stock' as const,
-        exchange: s.exchangeShortName || s.stockExchange || '',
+        exchange: '',
       }))
+
+    // If Finnhub returned nothing, try Yahoo Finance as fallback
+    if (stockResults.length === 0) {
+      const yahooResults = await searchYahoo(query, 6).catch(() => [])
+      stockResults = yahooResults.map((s: { symbol: string; name: string; exchange: string }) => ({
+        ticker: s.symbol,
+        name: s.name || s.symbol,
+        type: 'stock' as const,
+        exchange: s.exchange || '',
+      }))
+    }
 
     // Process CoinGecko crypto results
     const coins = cryptoResult?.coins || []
@@ -50,19 +55,6 @@ export async function GET(request: NextRequest) {
         exchange: ((c.symbol as string) || '').toUpperCase(),
         image: (c.thumb as string) || '',
       }))
-
-    // If FMP search returned nothing, try direct ticker lookup (works on free tier)
-    if (stockResults.length === 0 && /^[A-Za-z.]{1,5}$/.test(query)) {
-      const quote = await getQuote(query.toUpperCase()).catch(() => null)
-      if (quote?.symbol) {
-        stockResults.push({
-          ticker: quote.symbol,
-          name: quote.name || query.toUpperCase(),
-          type: 'stock' as const,
-          exchange: quote.exchange || '',
-        })
-      }
-    }
 
     // Always show stocks first; limit crypto when stocks are present
     const cryptoLimit = stockResults.length > 0 ? 2 : 4
