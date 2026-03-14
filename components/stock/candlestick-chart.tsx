@@ -21,7 +21,12 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
   const [showVolume, setShowVolume] = useState(true)
   const [showSma, setShowSma] = useState<Record<string, boolean>>({ sma20: false, sma50: false, sma200: false })
 
-  const range = timeframe.toLowerCase().replace('m', 'm').replace('y', 'y')
+  // Store indicators + showSma in refs so chart effect doesn't re-run when they change
+  const indicatorsRef = useRef<TechnicalIndicators | undefined>(undefined)
+  const showSmaRef = useRef(showSma)
+  showSmaRef.current = showSma
+
+  const range = timeframe.toLowerCase()
 
   const { data: history, isLoading: historyLoading } = useQuery<OHLCV[]>({
     queryKey: ['stock-history', ticker, range],
@@ -41,6 +46,15 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
     },
   })
 
+  // Keep indicatorsRef current; re-run chart effect when indicators first arrive
+  const indicatorsReady = useRef(false)
+  if (indicators && !indicatorsReady.current) {
+    indicatorsReady.current = true
+  }
+  indicatorsRef.current = indicators
+
+  // ── Main candlestick chart ─────────────────────────────────────────
+  // Only re-runs when history or showVolume changes — NOT when indicators change
   useEffect(() => {
     if (!containerRef.current || !history || history.length === 0) return
 
@@ -50,7 +64,6 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
       const { createChart, CandlestickSeries, HistogramSeries, LineSeries } = await import('lightweight-charts')
       if (disposed || !containerRef.current) return
 
-      // Clear previous chart
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
@@ -68,21 +81,14 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           vertLines: { color: '#2a2a3520' },
           horzLines: { color: '#2a2a3520' },
         },
-        crosshair: {
-          mode: 0,
-        },
-        rightPriceScale: {
-          borderColor: '#2a2a35',
-        },
-        timeScale: {
-          borderColor: '#2a2a35',
-          timeVisible: false,
-        },
+        crosshair: { mode: 0 },
+        rightPriceScale: { borderColor: '#2a2a35' },
+        timeScale: { borderColor: '#2a2a35', timeVisible: false },
       })
 
       chartRef.current = chart
 
-      // Candlestick series
+      // Candlesticks
       const candleSeries = chart.addSeries(CandlestickSeries, {
         upColor: '#00c896',
         downColor: '#ff4757',
@@ -108,11 +114,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           priceFormat: { type: 'volume' },
           priceScaleId: 'volume',
         })
-
-        chart.priceScale('volume').applyOptions({
-          scaleMargins: { top: 0.8, bottom: 0 },
-        })
-
+        chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
         volumeSeries.setData(
           history!.map((d) => ({
             time: d.date,
@@ -122,16 +124,16 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         )
       }
 
-      // SMA overlays
-      if (indicators) {
+      // SMA overlays — read from refs so this doesn't need them as deps
+      const currentIndicators = indicatorsRef.current
+      const currentShowSma = showSmaRef.current
+      if (currentIndicators) {
         const dateSet = new Set(history!.map((d) => d.date))
-
-        Object.entries(showSma).forEach(([key, visible]) => {
+        Object.entries(currentShowSma).forEach(([key, visible]) => {
           if (!visible) return
           const smaKey = key as keyof typeof SMA_COLORS
-          const smaData = indicators[smaKey as keyof TechnicalIndicators] as Array<{ date: string; value: number }> | undefined
+          const smaData = currentIndicators[smaKey as keyof TechnicalIndicators] as Array<{ date: string; value: number }> | undefined
           if (!smaData) return
-
           const series = chart.addSeries(LineSeries, {
             color: SMA_COLORS[smaKey],
             lineWidth: 1,
@@ -139,7 +141,6 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
             priceLineVisible: false,
             lastValueVisible: false,
           })
-
           series.setData(
             smaData
               .filter((d) => dateSet.has(d.date))
@@ -150,17 +151,13 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
 
       chart.timeScale().fitContent()
 
-      // Resize handler
       const handleResize = () => {
         if (containerRef.current && chart) {
           chart.applyOptions({ width: containerRef.current.clientWidth })
         }
       }
       window.addEventListener('resize', handleResize)
-
-      return () => {
-        window.removeEventListener('resize', handleResize)
-      }
+      return () => window.removeEventListener('resize', handleResize)
     }
 
     initChart()
@@ -172,9 +169,10 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         chartRef.current = null
       }
     }
-  }, [history, showVolume, showSma, indicators])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history, showVolume, showSma]) // showSma triggers rebuild for SMA toggle; indicators excluded intentionally
 
-  // RSI + MACD sub-chart
+  // ── RSI + MACD sub-chart ───────────────────────────────────────────
   useEffect(() => {
     if (!rsiContainerRef.current || !indicators || !history || history.length === 0) return
 
@@ -203,19 +201,14 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           vertLines: { color: '#2a2a3520' },
           horzLines: { color: '#2a2a3520' },
         },
-        rightPriceScale: {
-          borderColor: '#2a2a35',
-        },
-        timeScale: {
-          borderColor: '#2a2a35',
-          visible: false,
-        },
+        rightPriceScale: { borderColor: '#2a2a35' },
+        timeScale: { borderColor: '#2a2a35', visible: false },
       })
 
       rsiChartRef.current = chart
 
       // RSI
-      if (indicators && indicators.rsi && indicators.rsi.length > 0) {
+      if (indicators?.rsi && indicators.rsi.length > 0) {
         const rsiSeries = chart.addSeries(LineSeries, {
           color: '#6366f1',
           lineWidth: 1,
@@ -223,27 +216,21 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           lastValueVisible: true,
           priceLineVisible: false,
         })
-
         rsiSeries.setData(
           indicators.rsi
             .filter((d) => dateSet.has(d.date))
             .map((d) => ({ time: d.date, value: d.value }))
         )
-
-        chart.priceScale('rsi').applyOptions({
-          scaleMargins: { top: 0.05, bottom: 0.55 },
-          autoScale: true,
-        })
+        chart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.05, bottom: 0.55 }, autoScale: true })
       }
 
-      // MACD histogram
-      if (indicators && indicators.macd && indicators.macd.length > 0) {
+      // MACD
+      if (indicators?.macd && indicators.macd.length > 0) {
         const macdHistSeries = chart.addSeries(HistogramSeries, {
           priceScaleId: 'macd',
           lastValueVisible: false,
           priceLineVisible: false,
         })
-
         macdHistSeries.setData(
           indicators.macd
             .filter((d) => dateSet.has(d.date))
@@ -261,7 +248,6 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           lastValueVisible: false,
           priceLineVisible: false,
         })
-
         macdLine.setData(
           indicators.macd
             .filter((d) => dateSet.has(d.date))
@@ -275,17 +261,13 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           lastValueVisible: false,
           priceLineVisible: false,
         })
-
         signalLine.setData(
           indicators.macd
             .filter((d) => dateSet.has(d.date))
             .map((d) => ({ time: d.date, value: d.signal }))
         )
 
-        chart.priceScale('macd').applyOptions({
-          scaleMargins: { top: 0.55, bottom: 0.05 },
-          autoScale: true,
-        })
+        chart.priceScale('macd').applyOptions({ scaleMargins: { top: 0.55, bottom: 0.05 }, autoScale: true })
       }
 
       chart.timeScale().fitContent()
@@ -296,10 +278,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         }
       }
       window.addEventListener('resize', handleResize)
-
-      return () => {
-        window.removeEventListener('resize', handleResize)
-      }
+      return () => window.removeEventListener('resize', handleResize)
     }
 
     initRsiChart()
@@ -370,7 +349,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
       {/* Main chart */}
       <div ref={containerRef} className="rounded-lg overflow-hidden border border-border" />
 
-      {/* RSI + MACD */}
+      {/* RSI + MACD legend */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
         <span className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-[#6366f1]" /> RSI (14)

@@ -42,3 +42,6 @@ ApiKeys.txt
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# private docs (no subir a GitHub)
+docs/_private/

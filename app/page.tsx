@@ -1,12 +1,32 @@
 'use client'
 
+import { useState } from 'react'
 import { SearchBar } from '@/components/search-bar'
 import { WatchlistCard } from '@/components/watchlist-card'
+import { PortfolioCard } from '@/components/portfolio-card'
+import { PortfolioSummary } from '@/components/portfolio-summary'
+import { AddPositionDialog } from '@/components/add-position-dialog'
 import { useWatchlist } from '@/lib/store/watchlist'
-import { TrendingUp, Eye } from 'lucide-react'
+import { usePortfolio } from '@/lib/store/portfolio'
+import { TrendingUp, Eye, Briefcase, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import type { PortfolioPosition } from '@/lib/types'
 
 export default function HomePage() {
   const items = useWatchlist((s) => s.items)
+  const positions = usePortfolio((s) => s.positions)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingPosition, setEditingPosition] = useState<PortfolioPosition | null>(null)
+
+  function handleEditPosition(pos: PortfolioPosition) {
+    setEditingPosition(pos)
+    setDialogOpen(true)
+  }
+
+  function handleAddPosition() {
+    setEditingPosition(null)
+    setDialogOpen(true)
+  }
 
   return (
     <div className="space-y-10">
@@ -45,6 +65,51 @@ export default function HomePage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Portfolio */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Briefcase className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Portafolio</h2>
+          <span className="text-sm text-muted-foreground">({positions.length})</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto gap-1"
+            onClick={handleAddPosition}
+          >
+            <Plus className="w-4 h-4" />
+            Agregar
+          </Button>
+        </div>
+
+        {positions.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-lg">
+            <Briefcase className="w-8 h-8 mx-auto mb-3 opacity-50" />
+            <p>Tu portafolio está vacío.</p>
+            <p className="text-sm mt-1">Agregá posiciones para trackear tu P&L.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <PortfolioSummary positions={positions} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {positions.map((pos) => (
+                <PortfolioCard
+                  key={pos.ticker}
+                  position={pos}
+                  onEdit={() => handleEditPosition(pos)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <AddPositionDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          editingPosition={editingPosition}
+        />
       </div>
 
       {/* Quick Access */}

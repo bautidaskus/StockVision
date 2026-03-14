@@ -95,6 +95,23 @@ export async function getBasicFinancials(ticker: string) {
 
 // ─── Company News ──────────────────────────────────────────────────
 
+// ─── Recommendation Trends ──────────────────────────────────────
+
+export async function getRecommendationTrends(ticker: string) {
+  const data = await fetchFinnhub('/stock/recommendation', { symbol: ticker })
+  if (!Array.isArray(data)) return []
+  return data.map((item: Record<string, unknown>) => ({
+    period: String(item.period || ''),
+    strongBuy: Number(item.strongBuy) || 0,
+    buy: Number(item.buy) || 0,
+    hold: Number(item.hold) || 0,
+    sell: Number(item.sell) || 0,
+    strongSell: Number(item.strongSell) || 0,
+  }))
+}
+
+// ─── Company News ──────────────────────────────────────────────────
+
 export async function getCompanyNews(ticker: string, daysBack = 30) {
   const to = new Date()
   const from = new Date()

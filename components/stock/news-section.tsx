@@ -26,7 +26,7 @@ export function NewsSection({ ticker }: { ticker: string }) {
     )
   }
 
-  if (!news || news.length === 0) {
+  if (!news || !Array.isArray(news) || news.length === 0) {
     return (
       <Card className="p-6 bg-card border-border text-center text-muted-foreground">
         No hay noticias recientes disponibles para {ticker}.

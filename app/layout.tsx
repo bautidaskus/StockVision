@@ -33,6 +33,12 @@ export default function RootLayout({
                 <span className="text-primary">SV</span>
                 <span>StockVision</span>
               </a>
+              <a
+                href="/screener"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Screener
+              </a>
             </div>
           </nav>
           <main className="max-w-7xl mx-auto px-4 py-6">

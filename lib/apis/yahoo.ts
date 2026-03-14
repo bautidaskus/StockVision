@@ -87,6 +87,91 @@ export async function getYahooHistory(ticker: string, years = 5) {
   }))
 }
 
+// ─── Earnings ───────────────────────────────────────────────────────
+
+export async function getYahooEarnings(ticker: string) {
+  const result: any = await yf.quoteSummary(ticker, {
+    modules: ['calendarEvents', 'earningsHistory'],
+  })
+
+  // Next earnings date
+  const calEvents = result.calendarEvents || {}
+  const earningsDates = calEvents.earnings?.earningsDate || []
+  const nextEarningsDate = earningsDates.length > 0
+    ? (earningsDates[0] instanceof Date
+        ? earningsDates[0].toISOString().split('T')[0]
+        : String(earningsDates[0]))
+    : null
+
+  // Earnings history
+  const historyData: any[] = result.earningsHistory?.earningsHistoryData || []
+  const earningsHistory = historyData.map((e: any) => {
+    const date = e.quarter instanceof Date
+      ? e.quarter.toISOString().split('T')[0]
+      : String(e.quarter || '')
+    const epsEstimate = e.epsEstimate != null ? Number(e.epsEstimate) : null
+    const epsActual = e.epsActual != null ? Number(e.epsActual) : null
+    const epsDiff = e.epsDifference != null ? Number(e.epsDifference) : null
+    const epsSurpPct = e.surprisePercent != null ? Number(e.surprisePercent) : null
+
+    return {
+      date,
+      epsEstimate,
+      epsActual,
+      epsSurprise: epsDiff,
+      epsSurprisePercent: epsSurpPct,
+    }
+  })
+
+  return { nextEarningsDate, earningsHistory }
+}
+
+// ─── Insider Transactions ───────────────────────────────────────────
+
+export async function getYahooInsiders(ticker: string) {
+  const result: any = await yf.quoteSummary(ticker, {
+    modules: ['insiderTransactions'],
+  })
+
+  const rawTransactions: any[] = result.insiderTransactions?.transactions || []
+
+  let buyCount = 0
+  let sellCount = 0
+  let netBuying = 0
+
+  const transactions = rawTransactions.map((t: any) => {
+    const shares = Number(t.shares) || 0
+    const value = t.value != null ? Number(t.value) : null
+    const text = String(t.transactionText || '').toLowerCase()
+
+    let type: 'buy' | 'sell' | 'other' = 'other'
+    if (text.includes('purchase') || text.includes('buy') || text.includes('acquisition')) {
+      type = 'buy'
+      buyCount++
+      netBuying += shares
+    } else if (text.includes('sale') || text.includes('sell') || text.includes('disposition')) {
+      type = 'sell'
+      sellCount++
+      netBuying -= shares
+    }
+
+    const date = t.startDate instanceof Date
+      ? t.startDate.toISOString().split('T')[0]
+      : String(t.startDate || '')
+
+    return {
+      name: String(t.filerName || 'Unknown'),
+      position: String(t.filerRelation || 'N/A'),
+      date,
+      shares,
+      value,
+      type,
+    }
+  })
+
+  return { transactions, netBuying, buyCount, sellCount }
+}
+
 // ─── Financials (Income Statement, Balance Sheet, Cash Flow) ───────
 
 export async function getYahooFinancials(ticker: string, period: 'quarterly' | 'annual' = 'quarterly', limit = 8) {

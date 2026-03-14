@@ -8,6 +8,10 @@ export const CACHE_TTL = {
   FINANCIALS: 86400,    // 24 hours
   NEWS: 3600,           // 1 hour
   AI_ANALYSIS: 21600,   // 6 hours
+  RECOMMENDATIONS: 3600, // 1 hour
+  EARNINGS: 86400,       // 24 hours
+  INSIDERS: 86400,       // 24 hours
+  SCREENER: 3600,        // 1 hour
 } as const
 
 let redis: Redis | null = null
