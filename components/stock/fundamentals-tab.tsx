@@ -12,6 +12,7 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
     queryKey: ['stock-overview', ticker],
     queryFn: async () => {
       const res = await fetch(`/api/stock/${ticker}/overview`)
+      if (!res.ok) throw new Error('Failed to fetch overview')
       return res.json()
     },
   })

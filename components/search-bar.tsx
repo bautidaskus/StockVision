@@ -44,6 +44,7 @@ export function SearchBar() {
       setLoading(true)
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
+        if (!res.ok) throw new Error('Search failed')
         const data = await res.json()
         setResults(data)
         setIsOpen(true)
@@ -108,7 +109,7 @@ export function SearchBar() {
                     {item.type === 'stock' ? item.ticker : item.exchange}
                   </span>
                   <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded bg-secondary">
-                    {item.type === 'crypto' ? 'CRYPTO' : item.exchange}
+                    {item.type === 'crypto' ? 'CRYPTO' : item.exchange || 'STOCK'}
                   </span>
                 </div>
                 <div className="text-sm text-muted-foreground truncate">{item.name}</div>

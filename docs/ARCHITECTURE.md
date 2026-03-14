@@ -1,160 +1,162 @@
 # Arquitectura de StockVision
 
-## Diagrama de Flujo
+## Resumen
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        BROWSER (Client)                         │
-│                                                                 │
-│  ┌──────────┐  ┌──────────────┐  ┌───────────┐  ┌───────────┐ │
-│  │ Homepage  │  │ Stock Detail │  │  Crypto   │  │ Watchlist  │ │
-│  │ Search    │  │ Chart/Fund/  │  │  Detail   │  │ (Zustand)  │ │
-│  │ Watchlist │  │ AI/News Tabs │  │ Chart/AI  │  │ localStorage│
-│  └────┬─────┘  └──────┬───────┘  └─────┬─────┘  └───────────┘ │
-│       │               │                │                        │
-│       └───────────────┼────────────────┘                        │
-│                       │ TanStack Query (useQuery)               │
-│                       ▼                                         │
-├─────────────────── fetch() ─────────────────────────────────────┤
-│                                                                 │
-│                    NEXT.JS API ROUTES (Server)                  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                    Redis Cache Layer                      │    │
-│  │              (Upstash Redis — lib/cache/redis.ts)         │    │
-│  │                                                           │    │
-│  │  getCached(key) ──▶ hit? return cached data              │    │
-│  │                     miss? ──▶ call external API           │    │
-│  │                              setCached(key, data, ttl)    │    │
-│  └──────────────────────┬──────────────────────────────────┘    │
-│                         │ (on cache miss)                       │
-│                         ▼                                       │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                   External APIs                           │   │
-│  │                                                           │   │
-│  │  Alpha Vantage ─── overview, prices, RSI, MACD, SMA      │   │
-│  │  FMP ───────────── financials, ratios, search, estimates  │   │
-│  │  Finnhub ────────── company news                          │   │
-│  │  CoinGecko ──────── crypto prices, market data, search    │   │
-│  │  Google Gemini ──── AI analysis (streaming)               │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
+StockVision es una app personal de analisis financiero construida sobre Next.js App Router. El cliente no habla con proveedores externos directamente: todo pasa por rutas internas bajo `app/api/`.
 
-## Capas del Sistema
+## Capas
 
-### 1. Capa de Presentación (`app/` + `components/`)
+### 1. Presentacion
 
-Páginas de Next.js App Router con componentes React client-side.
+Ubicacion:
+- `app/`
+- `components/`
 
-| Página | Ruta | Descripción |
-|--------|------|-------------|
-| Homepage | `/` | Buscador, watchlist, acceso rápido |
-| Stock | `/stock/[ticker]` | Detalle de acción/ETF con 4 tabs |
-| Crypto | `/crypto/[id]` | Detalle de cripto con 2 tabs |
+Responsabilidades:
+- paginas cliente
+- componentes visuales
+- estados de loading/error
+- consultas con TanStack Query
+- navegacion entre home, stock, crypto, screener y login
 
-**Patrón de data fetching:** Cada componente usa `useQuery()` de TanStack Query que hace `fetch()` a las API routes internas. TanStack Query maneja el caché del lado cliente (staleTime: 5 min) y estados de loading/error.
+Paginas principales:
+- `/`
+- `/stock/[ticker]`
+- `/crypto/[id]`
+- `/screener`
+- `/login`
 
-### 2. Capa de API Routes (`app/api/`)
+### 2. Estado cliente
 
-Endpoints server-side de Next.js que actúan como proxy a las APIs externas. Protegen las API keys y manejan la lógica de caché.
+Ubicacion:
+- `lib/store/watchlist.ts`
+- `lib/store/portfolio.ts`
 
-**Flujo de cada route:**
-```
-Request → Check Redis cache → (hit) Return cached → (miss) Call external API → Cache result → Return
+Tecnologia:
+- Zustand + `persist`
+
+Persistencia:
+- `stockvision-watchlist`
+- `stockvision-portfolio`
+
+### 3. API interna
+
+Ubicacion:
+- `app/api/`
+
+Responsabilidades:
+- proteger API keys
+- normalizar datos
+- combinar proveedores
+- aplicar cache server-side
+- encapsular fallbacks
+
+Patron dominante:
+
+```text
+request -> cache lookup -> provider(s) -> normalizacion -> cache set -> response
 ```
 
-**Rutas de stock:** 5 endpoints bajo `/api/stock/[ticker]/`
-- `overview` — 2 calls Alpha Vantage (OVERVIEW + GLOBAL_QUOTE)
-- `history` — 1 call Alpha Vantage (TIME_SERIES_DAILY_ADJUSTED, full output)
-- `indicators` — 5 calls Alpha Vantage (RSI + MACD + SMA20 + SMA50 + SMA200)
-- `financials` — 6 calls FMP (income + balance + cashflow + metrics + estimates + ratios)
-- `news` — 1 call Finnhub (company-news)
+### 4. Cache
 
-**Rutas de crypto:** 2 endpoints bajo `/api/crypto/[id]/`
-- `overview` — 1 call CoinGecko (coins/{id})
-- `history` — 1 call CoinGecko (coins/{id}/market_chart)
+Ubicacion:
+- `lib/cache/redis.ts`
 
-**Ruta de AI:** `/api/analyze/[ticker]`
-- Hace fetch interno a overview + history + indicators + financials + news
-- Construye prompt estructurado con datos reales
-- Llama Gemini con streaming (`generateContentStream`)
-- Devuelve `ReadableStream` al cliente
+Tecnologia:
+- Upstash Redis
 
-**Ruta de búsqueda:** `/api/search`
-- Busca en paralelo en FMP (stocks) y CoinGecko (crypto)
-- Devuelve resultados combinados
+Condicion importante:
+- Redis es opcional
+- si falla, la app no debe caerse
 
-### 3. Capa de Caché (`lib/cache/redis.ts`)
+### 5. Proveedores externos
 
-Redis (Upstash) con TTLs configurables. Funciones principales:
+#### Stocks
 
-```typescript
-getCached<T>(key: string): Promise<T | null>        // Lee del caché
-setCached<T>(key: string, data: T, ttl: number)     // Escribe con TTL
-cacheKey(prefix: string, ...parts: string[]): string // Genera key: "sv:prefix:part1:part2"
-```
+- Yahoo Finance
+  - fuente principal de history, financials, earnings e insiders
+- Finnhub
+  - fuente principal de quote en tiempo real, metrics basicas, news, recommendations y search
+- Alpha Vantage
+  - fallback en overview e history
+- FMP
+  - screener
 
-**Patrón de keys:** `sv:{tipo}:{params}` — ejemplo: `sv:overview:AAPL`, `sv:history:AAPL`, `sv:crypto-overview:bitcoin`
+#### Crypto
 
-**Fallback:** Si Redis no responde, las funciones retornan `null` / no-op en vez de lanzar errores.
+- CoinGecko
+  - overview, history y search
 
-### 4. Capa de APIs Externas (`lib/apis/`)
+#### IA
 
-Wrappers tipados para cada API externa. Cada archivo exporta funciones async que hacen fetch directo. No manejan caché (eso lo hace la API route).
+- Gemini 2.5 Flash
+  - analisis streaming para stocks y crypto
 
-| Archivo | API | Funciones principales |
-|---------|-----|----------------------|
-| `alphavantage.ts` | Alpha Vantage | `getOverview`, `getGlobalQuote`, `getDailyTimeSeries`, `getRSI`, `getMACD`, `getSMA` |
-| `fmp.ts` | Financial Modeling Prep | `getIncomeStatement`, `getBalanceSheet`, `getCashFlowStatement`, `getKeyMetrics`, `getAnalystEstimates`, `getRatios`, `searchTicker` |
-| `finnhub.ts` | Finnhub | `getCompanyNews` |
-| `coingecko.ts` | CoinGecko | `getCoinData`, `getCoinMarketChart`, `searchCoins` |
+## Flujos relevantes
 
-### 5. Capa de Estado (`lib/store/`)
+### Stock overview
 
-**Watchlist (Zustand + persist):**
-- Store: `useWatchlist`
-- Persistencia: `localStorage` bajo key `stockvision-watchlist`
-- Acciones: `addItem`, `removeItem`, `hasItem`
-- Cada item: `{ ticker, name, type: 'stock' | 'crypto', addedAt }`
+`/api/stock/[ticker]/overview`
 
-## Gráficos
+1. busca cache
+2. intenta Finnhub + Yahoo en paralelo
+3. si falla, usa Alpha Vantage
+4. normaliza a `StockOverview`
 
-### Lightweight Charts (TradingView)
-Usado en `candlestick-chart.tsx` y `crypto-chart.tsx`. Se importa dinámicamente (`import()`) porque es client-only.
+### Stock history
 
-**Stock chart:** Candlestick + volume histogram + SMA lines (opcionales) + RSI + MACD en sub-chart.
+`/api/stock/[ticker]/history`
 
-**Crypto chart:** Area chart + volume histogram.
+1. busca dataset completo cacheado
+2. si falta, usa Yahoo
+3. si Yahoo falla, usa Alpha Vantage
+4. filtra por rango al final
 
-### Recharts
-Usado en `fundamentals-tab.tsx` para gráficos de barras (Revenue, Net Income, EPS trimestrales).
+### Indicators
 
-## Streaming de IA
+`/api/stock/[ticker]/indicators`
 
-El análisis con Gemini usa streaming end-to-end:
+1. consume la ruta interna de history
+2. calcula RSI, MACD y SMA localmente
+3. cachea resultado
 
-```
-API Route                              Client Component
-─────────                              ────────────────
-model.generateContentStream(prompt)    fetch('/api/analyze/AAPL')
-    │                                       │
-    ▼                                       ▼
-for await (chunk of result.stream)     reader = response.body.getReader()
-    │                                       │
-    ▼                                       ▼
-controller.enqueue(encode(text))       while (true) { reader.read() }
-    │                                       │
-    ▼                                       ▼
-ReadableStream ──────────────────────▶ setAnalysis(fullText)
-                                       (re-renders progressively)
-```
+Esto reduce consumo externo y evita varias llamadas a Alpha Vantage.
 
-Después del streaming completo, el texto final se guarda en Redis (TTL: 6 horas).
+### AI analysis
 
-## Manejo de Errores
+`/api/analyze/[ticker]`
 
-- API routes devuelven `{ error: string }` con status 4xx/5xx
-- Componentes muestran mensajes claros cuando hay error
-- Redis failures son silenciosos (log + fallback)
-- Alpha Vantage rate limits devuelven error descriptivo ("25/day limit" o "5/min limit")
+1. busca cache por `type + ticker`
+2. consulta rutas internas necesarias
+3. arma prompt
+4. llama Gemini con streaming
+5. transmite chunks al cliente
+6. cachea texto final
+
+## Seguridad
+
+Hay proteccion opcional por contrasena:
+- `middleware.ts`
+- `app/api/auth/route.ts`
+
+Comportamiento:
+- si `APP_PASSWORD` no existe, no hay login
+- la UI queda protegida, pero `api/*` queda fuera del middleware
+
+## Riesgos actuales
+
+- documentacion historica previa estuvo desalineada con el codigo
+- FMP en screener no expone hoy la misma riqueza que sugieren algunos tipos
+- hay fallbacks y mezcla de proveedores, por lo que siempre conviene revisar la ruta concreta antes de modificar un flujo
+
+## Archivos de referencia
+
+- `app/api/stock/[ticker]/overview/route.ts`
+- `app/api/stock/[ticker]/history/route.ts`
+- `app/api/stock/[ticker]/indicators/route.ts`
+- `app/api/analyze/[ticker]/route.ts`
+- `lib/apis/finnhub.ts`
+- `lib/apis/yahoo.ts`
+- `lib/apis/fmp.ts`
+- `lib/apis/coingecko.ts`
+- `lib/cache/redis.ts`

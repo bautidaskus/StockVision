@@ -1,185 +1,119 @@
-# Guía para Extender StockVision
+# Guia para extender StockVision
 
-## Agregar un nuevo componente shadcn/ui
+## Regla base
 
-```bash
-npx shadcn@latest add <nombre-componente>
-```
-
-Los componentes se instalan en `components/ui/`. No editar manualmente — usar la CLI.
-
-## Agregar una nueva API externa
-
-1. Crear el wrapper en `lib/apis/nueva-api.ts`:
-```typescript
-const BASE_URL = 'https://api.example.com'
-
-function apiKey(): string {
-  return process.env.NUEVA_API_KEY || ''
-}
-
-async function fetchAPI(endpoint: string, params: Record<string, string> = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`)
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v)
-  }
-  // Agregar API key como header o query param según la API
-  const res = await fetch(url.toString())
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
-  return res.json()
-}
-
-export async function getData(param: string) {
-  return fetchAPI(`/endpoint/${param}`)
-}
-```
-
-2. Agregar la variable de entorno en `.env.local`
-3. Crear la API route en `app/api/...`
-4. Documentar en `docs/API-ROUTES.md`
+Antes de extender algo, revisar el flujo real en codigo y no asumir que la documentacion vieja sigue vigente. El archivo de entrada recomendado es `docs/PROJECT-CONTEXT.md`.
 
 ## Agregar una nueva API route
 
-Seguir el patrón existente:
+Patron esperado:
 
-```typescript
+1. normalizar parametros
+2. construir cache key
+3. leer cache
+4. consultar proveedor si hace falta
+5. mapear a tipos internos
+6. guardar cache
+7. devolver JSON consistente
+
+Esqueleto:
+
+```ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { ticker: string } }
-) {
-  const ticker = params.ticker.toUpperCase()
-  const key = cacheKey('mi-dato', ticker)
+export async function GET(request: NextRequest) {
+  const key = cacheKey('mi-recurso', '...')
 
   try {
-    // 1. Intentar caché
     const cached = await getCached(key)
     if (cached) return NextResponse.json(cached)
 
-    // 2. Llamar API externa
-    const data = await miApiFetch(ticker)
+    const result = await fetchSomething()
 
-    // 3. Cachear resultado
-    await setCached(key, data, CACHE_TTL.OVERVIEW) // elegir TTL apropiado
-
-    // 4. Retornar
-    return NextResponse.json(data)
+    await setCached(key, result, CACHE_TTL.OVERVIEW)
+    return NextResponse.json(result)
   } catch (error) {
-    console.error('Error:', error)
     const message = error instanceof Error ? error.message : 'Error'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 ```
 
-## Agregar un nuevo TTL de caché
+## Agregar o cambiar un proveedor externo
 
-En `lib/cache/redis.ts`, agregar al objeto `CACHE_TTL`:
+Ubicacion:
+- `lib/apis/`
 
-```typescript
-export const CACHE_TTL = {
-  OVERVIEW: 600,
-  HISTORY: 3600,
-  // ...
-  MI_NUEVO_DATO: 1800,  // 30 minutos
-} as const
-```
+Reglas:
+- el wrapper no debe conocer Redis
+- debe lanzar errores claros en HTTP no exitoso
+- si el proveedor devuelve payload raro, normalizar o lanzar error
+- la composicion de varios proveedores debe vivir en la route, no en el wrapper
 
-## Agregar un nuevo tab a la página de stock
+## Agregar datos a un componente existente
 
-1. Crear el componente en `components/stock/mi-tab.tsx`
-2. Editar `app/stock/[ticker]/page.tsx`:
+Chequear siempre:
+- `lib/types.ts`
+- route que produce el dato
+- componente que lo consume
+- posibles estados `loading`, `error` y `empty`
 
-```tsx
-import { MiTab } from '@/components/stock/mi-tab'
+## Si tocás stocks
 
-// Dentro del <Tabs>:
-<TabsTrigger value="mi-tab">Mi Tab</TabsTrigger>
-<TabsContent value="mi-tab">
-  <MiTab ticker={ticker} />
-</TabsContent>
-```
+Revisar primero:
+- `app/api/stock/[ticker]/overview/route.ts`
+- `app/api/stock/[ticker]/history/route.ts`
+- `app/api/stock/[ticker]/indicators/route.ts`
+- `components/stock/*`
 
-## Agregar un nuevo tipo de activo (más allá de stock/crypto)
+## Si tocás crypto
 
-1. Crear API routes en `app/api/nuevo-tipo/[id]/`
-2. Crear página en `app/nuevo-tipo/[id]/page.tsx`
-3. Crear componentes en `components/nuevo-tipo/`
-4. Actualizar el tipo `WatchlistItem` en `lib/types.ts`:
-```typescript
-type: 'stock' | 'crypto' | 'nuevo-tipo'
-```
-5. Actualizar `search-bar.tsx` para incluir resultados del nuevo tipo
-6. Actualizar `watchlist-card.tsx` para manejar el nuevo tipo
+Revisar primero:
+- `app/api/crypto/[id]/overview/route.ts`
+- `app/api/crypto/[id]/history/route.ts`
+- `components/crypto/*`
 
-## Agregar una nueva métrica al header de stock
+## Si tocás IA
 
-Editar `components/stock/stock-header.tsx`. Las métricas están en un grid al final:
+Revisar primero:
+- `app/api/analyze/[ticker]/route.ts`
+- `components/stock/ai-analysis-tab.tsx`
 
-```tsx
-<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-  <MetricItem label="Mi Métrica" value={formatCurrency(overview.miMetrica)} />
-</div>
-```
+Cuidar especialmente:
+- cache key
+- prompt
+- streaming
+- manejo de errores de rutas internas
 
-Si la métrica viene de la API, agregarla al tipo `StockOverview` en `lib/types.ts` y mapearla en `app/api/stock/[ticker]/overview/route.ts`.
+## Si tocás estado local
 
-## Convenciones de Estilo
+Revisar:
+- `lib/store/watchlist.ts`
+- `lib/store/portfolio.ts`
 
-### Números financieros
-Siempre usar la clase `font-mono-numbers` para que se muestren con JetBrains Mono y tabular nums:
-```tsx
-<span className="font-mono-numbers">$185.50</span>
-```
+Reglas:
+- no romper compatibilidad con `localStorage` salvo que haya migracion
+- si cambia la forma del estado, evaluar impacto sobre datos persistidos ya guardados
 
-### Colores positivo/negativo
-```tsx
-import { colorForValue } from '@/lib/format'
+## Tests
 
-<span className={colorForValue(value)}>  // aplica text-green o text-red
-  {formatPercent(value)}
-</span>
-```
+La suite actual usa Vitest.
 
-### Cards y containers
-```tsx
-<Card className="p-4 bg-card border-border">
-  {/* contenido */}
-</Card>
-```
-
-### Loading states
-Usar `<Skeleton />` de shadcn/ui con dimensiones que coincidan con el contenido final:
-```tsx
-{isLoading ? (
-  <Skeleton className="h-6 w-24" />
-) : (
-  <span>{data}</span>
-)}
-```
-
-## Testing
-
-No hay tests configurados aún. Para agregar:
+Comandos:
 
 ```bash
-npm install -D vitest @testing-library/react @testing-library/jest-dom
+npm run test:run
 ```
 
-Crear `vitest.config.ts` y archivos `*.test.tsx` junto a los componentes.
+Cuando agregues una correccion o una nueva feature:
+- sumar test si el riesgo lo justifica
+- priorizar tests de wrappers, stores y componentes con logica
 
-## Variables de Entorno para Producción
+## Validacion minima
 
-En Vercel o cualquier hosting, configurar las mismas variables que `.env.local`:
+Antes de cerrar cambios:
 
-| Variable | Requerida | Descripción |
-|----------|-----------|-------------|
-| `ALPHA_VANTAGE_API_KEY` | Sí | Precios e indicadores de stocks |
-| `FMP_API_KEY` | Sí | Datos financieros y búsqueda |
-| `FINNHUB_API_KEY` | Sí | Noticias |
-| `COINGECKO_API_KEY` | Sí | Datos de crypto |
-| `GEMINI_API_KEY` | Sí | Análisis con IA |
-| `UPSTASH_REDIS_REST_URL` | Sí | Caché (URL de Upstash) |
-| `UPSTASH_REDIS_REST_TOKEN` | Sí | Caché (token de Upstash) |
+1. `npm run lint`
+2. `npm run test:run`
+3. `npm run build`

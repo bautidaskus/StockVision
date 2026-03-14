@@ -12,7 +12,7 @@ export async function GET(
   const ticker = params.ticker.toUpperCase()
   const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true'
   const type = request.nextUrl.searchParams.get('type') || 'stock' // stock or crypto
-  const cKey = cacheKey('analysis', ticker)
+  const cKey = cacheKey('analysis', type, ticker)
 
   try {
     // Check cache unless force refresh
@@ -29,15 +29,15 @@ export async function GET(
     const baseUrl = request.nextUrl.origin
     const dataPromises = type === 'crypto'
       ? [
-          fetch(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/overview`).then(r => r.json()).catch(() => null),
-          fetch(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/history?range=3m`).then(r => r.json()).catch(() => null),
+          fetchInternalJson(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/overview`),
+          fetchInternalJson(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/history?range=3m`),
         ]
       : [
-          fetch(`${baseUrl}/api/stock/${ticker}/overview`).then(r => r.json()).catch(() => null),
-          fetch(`${baseUrl}/api/stock/${ticker}/history?range=3m`).then(r => r.json()).catch(() => null),
-          fetch(`${baseUrl}/api/stock/${ticker}/indicators`).then(r => r.json()).catch(() => null),
-          fetch(`${baseUrl}/api/stock/${ticker}/financials?period=quarterly&limit=4`).then(r => r.json()).catch(() => null),
-          fetch(`${baseUrl}/api/stock/${ticker}/news`).then(r => r.json()).catch(() => null),
+          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/overview`),
+          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/history?range=3m`),
+          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/indicators`),
+          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/financials?period=quarterly&limit=4`),
+          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/news`),
         ]
 
     const results = await Promise.all(dataPromises)
@@ -90,6 +90,16 @@ export async function GET(
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
+  }
+}
+
+async function fetchInternalJson(url: string) {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return null
+    return response.json()
+  } catch {
+    return null
   }
 }
 

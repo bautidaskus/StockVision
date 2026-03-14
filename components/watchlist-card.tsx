@@ -21,6 +21,7 @@ export function WatchlistCard({ item }: { item: WatchlistItem }) {
         ? `/api/crypto/${item.ticker}/overview`
         : `/api/stock/${item.ticker}/overview`
       const res = await fetch(url)
+      if (!res.ok) throw new Error('Failed to fetch overview')
       return res.json()
     },
     staleTime: 5 * 60 * 1000,
@@ -33,6 +34,7 @@ export function WatchlistCard({ item }: { item: WatchlistItem }) {
         ? `/api/crypto/${item.ticker}/history?range=1m`
         : `/api/stock/${item.ticker}/history?range=1m`
       const res = await fetch(url)
+      if (!res.ok) throw new Error('Failed to fetch history')
       return res.json()
     },
     staleTime: 10 * 60 * 1000,
@@ -43,8 +45,8 @@ export function WatchlistCard({ item }: { item: WatchlistItem }) {
   const name = overview?.name || item.name
 
   const sparkData = item.type === 'crypto'
-    ? (history?.prices || []).map((p: { close: number }) => p.close)
-    : (history || []).map((p: { close: number }) => p.close)
+    ? (Array.isArray(history?.prices) ? history.prices : []).map((p: { close: number }) => p.close)
+    : (Array.isArray(history) ? history : []).map((p: { close: number }) => p.close)
 
   function handleClick() {
     if (item.type === 'crypto') {
