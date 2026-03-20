@@ -1,5 +1,7 @@
 'use client'
 
+import { motion } from 'framer-motion'
+
 export function SparklineChart({ data, positive }: { data: number[]; positive: boolean }) {
   if (data.length < 2) return null
 
@@ -19,11 +21,14 @@ export function SparklineChart({ data, positive }: { data: number[]; positive: b
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="none">
-      <polyline
+      <motion.polyline
         fill="none"
         stroke={color}
         strokeWidth="1.5"
         points={points}
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
       />
     </svg>
   )

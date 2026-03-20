@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -131,8 +132,14 @@ export function ScreenerResults({ results, isLoading, error }: ScreenerResultsPr
             </thead>
             <tbody>
               {sorted.map((item, i) => (
-                <tr
+                <motion.tr
                   key={item.ticker}
+                  {...(i < 20 ? {
+                    initial: { opacity: 0, y: 8 },
+                    whileInView: { opacity: 1, y: 0 },
+                    viewport: { once: true },
+                    transition: { duration: 0.25, delay: Math.min(i * 0.03, 0.5) },
+                  } : {})}
                   className={`border-b border-border/50 cursor-pointer hover:bg-secondary/30 transition-colors ${
                     i % 2 === 0 ? '' : 'bg-secondary/10'
                   }`}
@@ -167,7 +174,7 @@ export function ScreenerResults({ results, isLoading, error }: ScreenerResultsPr
                       {item.sector !== 'N/A' ? item.sector : '—'}
                     </Badge>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>

@@ -1,5 +1,6 @@
 'use client'
 
+import { StaggerContainer, StaggerItem } from '@/components/motion/stagger-container'
 import type { ScreenerFilters } from '@/lib/types'
 
 interface Preset {
@@ -66,22 +67,23 @@ interface ScreenerPresetBarProps {
 
 export function ScreenerPresetBar({ activePreset, onSelect }: ScreenerPresetBarProps) {
   return (
-    <div className="flex gap-2 flex-wrap">
+    <StaggerContainer className="flex gap-2 flex-wrap">
       {PRESETS.map((preset) => (
-        <button
-          key={preset.label}
-          onClick={() => onSelect(activePreset === preset.label ? null : preset)}
-          title={preset.description}
-          className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-            activePreset === preset.label
-              ? 'bg-primary border-primary text-primary-foreground'
-              : 'bg-card border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-          }`}
-        >
-          {preset.label}
-        </button>
+        <StaggerItem key={preset.label}>
+          <button
+            onClick={() => onSelect(activePreset === preset.label ? null : preset)}
+            title={preset.description}
+            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+              activePreset === preset.label
+                ? 'bg-primary border-primary text-primary-foreground'
+                : 'bg-card border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+            }`}
+          >
+            {preset.label}
+          </button>
+        </StaggerItem>
       ))}
-    </div>
+    </StaggerContainer>
   )
 }
 
