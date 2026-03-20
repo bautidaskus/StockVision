@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Star, StarOff } from 'lucide-react'
 import { useWatchlist } from '@/lib/store/watchlist'
+import { FadeIn } from '@/components/motion/fade-in'
+import { StaggerContainer, StaggerItem } from '@/components/motion/stagger-container'
 import { formatCurrency, formatLargeNumber, formatPercent, colorForValue } from '@/lib/format'
 import type { CryptoOverview } from '@/lib/types'
 
@@ -45,61 +47,63 @@ export function CryptoHeader({ id }: { id: string }) {
   const decimals = overview.price >= 1 ? 2 : overview.price >= 0.01 ? 4 : 6
 
   return (
-    <div className="p-6 bg-card rounded-lg border border-border">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            {overview.image && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={overview.image} alt={overview.name} className="w-8 h-8 rounded-full" />
+    <FadeIn>
+      <div className="p-6 bg-card rounded-lg border border-border">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              {overview.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={overview.image} alt={overview.name} className="w-8 h-8 rounded-full" />
+              )}
+              <h1 className="text-2xl font-bold">{overview.name}</h1>
+              <span className="font-mono-numbers text-lg text-muted-foreground">{overview.symbol}</span>
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              <Badge variant="secondary">#{overview.marketCapRank}</Badge>
+              <Badge variant="outline" className="text-muted-foreground">Crypto</Badge>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (isWatched) {
+                removeItem(id)
+              } else {
+                addItem({ ticker: id, name: overview.name, type: 'crypto' })
+              }
+            }}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          >
+            {isWatched ? (
+              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+            ) : (
+              <StarOff className="w-5 h-5 text-muted-foreground" />
             )}
-            <h1 className="text-2xl font-bold">{overview.name}</h1>
-            <span className="font-mono-numbers text-lg text-muted-foreground">{overview.symbol}</span>
-          </div>
-          <div className="flex items-center gap-2 mb-4">
-            <Badge variant="secondary">#{overview.marketCapRank}</Badge>
-            <Badge variant="outline" className="text-muted-foreground">Crypto</Badge>
-          </div>
+          </button>
         </div>
-        <button
-          onClick={() => {
-            if (isWatched) {
-              removeItem(id)
-            } else {
-              addItem({ ticker: id, name: overview.name, type: 'crypto' })
-            }
-          }}
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
-        >
-          {isWatched ? (
-            <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-          ) : (
-            <StarOff className="w-5 h-5 text-muted-foreground" />
-          )}
-        </button>
-      </div>
 
-      <div className="flex items-baseline gap-3 mb-4">
-        <span className="text-4xl font-bold font-mono-numbers">
-          {formatCurrency(overview.price, decimals)}
-        </span>
-        <span className={`text-xl font-mono-numbers font-semibold ${colorForValue(overview.changePercent24h)}`}>
-          ({formatPercent(overview.changePercent24h)})
-        </span>
-        <span className="text-sm text-muted-foreground">24h</span>
-      </div>
+        <FadeIn delay={0.1} className="flex items-baseline gap-3 mb-4">
+          <span className="text-4xl font-bold font-mono-numbers">
+            {formatCurrency(overview.price, decimals)}
+          </span>
+          <span className={`text-xl font-mono-numbers font-semibold ${colorForValue(overview.changePercent24h)}`}>
+            ({formatPercent(overview.changePercent24h)})
+          </span>
+          <span className="text-sm text-muted-foreground">24h</span>
+        </FadeIn>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        <MetricItem label="Market Cap" value={`$${formatLargeNumber(overview.marketCap)}`} />
-        <MetricItem label="Volumen 24h" value={`$${formatLargeNumber(overview.volume24h)}`} />
-        <MetricItem label="Circulating Supply" value={formatLargeNumber(overview.circulatingSupply)} />
-        <MetricItem label="Total Supply" value={overview.totalSupply ? formatLargeNumber(overview.totalSupply) : 'N/A'} />
-        <MetricItem label="ATH" value={formatCurrency(overview.ath, decimals)} />
-        <MetricItem label="ATH Date" value={overview.athDate ? new Date(overview.athDate).toLocaleDateString('es-AR') : 'N/A'} />
-        <MetricItem label="ATL" value={formatCurrency(overview.atl, decimals)} />
-        <MetricItem label="Max Supply" value={overview.maxSupply ? formatLargeNumber(overview.maxSupply) : 'Ilimitado'} />
+        <StaggerContainer className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+          <StaggerItem><MetricItem label="Market Cap" value={`$${formatLargeNumber(overview.marketCap)}`} /></StaggerItem>
+          <StaggerItem><MetricItem label="Volumen 24h" value={`$${formatLargeNumber(overview.volume24h)}`} /></StaggerItem>
+          <StaggerItem><MetricItem label="Circulating Supply" value={formatLargeNumber(overview.circulatingSupply)} /></StaggerItem>
+          <StaggerItem><MetricItem label="Total Supply" value={overview.totalSupply ? formatLargeNumber(overview.totalSupply) : 'N/A'} /></StaggerItem>
+          <StaggerItem><MetricItem label="ATH" value={formatCurrency(overview.ath, decimals)} /></StaggerItem>
+          <StaggerItem><MetricItem label="ATH Date" value={overview.athDate ? new Date(overview.athDate).toLocaleDateString('es-AR') : 'N/A'} /></StaggerItem>
+          <StaggerItem><MetricItem label="ATL" value={formatCurrency(overview.atl, decimals)} /></StaggerItem>
+          <StaggerItem><MetricItem label="Max Supply" value={overview.maxSupply ? formatLargeNumber(overview.maxSupply) : 'Ilimitado'} /></StaggerItem>
+        </StaggerContainer>
       </div>
-    </div>
+    </FadeIn>
   )
 }
 

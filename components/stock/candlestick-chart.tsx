@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '@/components/ui/skeleton'
+import { FadeIn } from '@/components/motion/fade-in'
 import type { OHLCV, TechnicalIndicators } from '@/lib/types'
 
 const TIMEFRAMES = ['1M', '3M', '6M', '1Y', '3Y', '5Y'] as const
@@ -302,7 +303,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
   }
 
   return (
-    <div className="space-y-3">
+    <FadeIn className="space-y-3">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex bg-secondary rounded-lg p-0.5">
@@ -362,6 +363,6 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         </span>
       </div>
       <div ref={rsiContainerRef} className="rounded-lg overflow-hidden border border-border" />
-    </div>
+    </FadeIn>
   )
 }

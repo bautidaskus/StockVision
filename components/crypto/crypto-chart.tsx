@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '@/components/ui/skeleton'
+import { FadeIn } from '@/components/motion/fade-in'
 
 const TIMEFRAMES = ['1M', '3M', '6M', '1Y', '3Y', '5Y'] as const
 
@@ -132,7 +133,7 @@ export function CryptoChart({ id }: { id: string }) {
   }
 
   return (
-    <div className="space-y-3">
+    <FadeIn className="space-y-3">
       <div className="flex bg-secondary rounded-lg p-0.5 w-fit">
         {TIMEFRAMES.map((tf) => (
           <button
@@ -150,6 +151,6 @@ export function CryptoChart({ id }: { id: string }) {
       </div>
 
       <div ref={containerRef} className="rounded-lg overflow-hidden border border-border" />
-    </div>
+    </FadeIn>
   )
 }
