@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Providers } from '@/components/providers'
+import { MobileNav } from '@/components/mobile-nav'
 import { Toaster } from 'sonner'
 import './globals.css'
 
@@ -28,18 +29,23 @@ export default function RootLayout({
     <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased font-sans min-h-screen">
         <Providers>
-          <nav className="border-b border-border sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
+          <nav className="border-b border-border sticky top-0 z-50 bg-background/70 backdrop-blur-md">
             <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-6">
               <a href="/" className="flex items-center gap-2 font-semibold text-lg">
                 <span className="text-primary">SV</span>
                 <span>StockVision</span>
               </a>
-              <a
-                href="/screener"
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Screener
-              </a>
+              <div className="hidden md:flex items-center gap-6">
+                <a
+                  href="/screener"
+                  className="nav-link text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Screener
+                </a>
+              </div>
+              <div className="ml-auto md:hidden">
+                <MobileNav />
+              </div>
             </div>
           </nav>
           <main className="max-w-7xl mx-auto px-4 py-6">
