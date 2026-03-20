@@ -2,6 +2,7 @@
 
 import { useQueries } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
+import { CountUp } from '@/components/motion/count-up'
 import { formatCurrency, formatPercent, colorForValue } from '@/lib/format'
 import type { PortfolioPosition } from '@/lib/types'
 
@@ -42,22 +43,34 @@ export function PortfolioSummary({ positions }: { positions: PortfolioPosition[]
 
   return (
     <div className="grid grid-cols-3 gap-3">
-      <Card className="p-4 bg-card border-border text-center">
+      <Card className="p-4 bg-card-glass border-border text-center">
         <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
-        <p className="font-mono-numbers font-semibold text-lg">{formatCurrency(totalValue)}</p>
+        <CountUp
+          value={totalValue}
+          format={formatCurrency}
+          className="font-mono-numbers font-semibold text-lg"
+        />
       </Card>
-      <Card className="p-4 bg-card border-border text-center">
+      <Card className="p-4 bg-card-glass border-border text-center">
         <p className="text-xs text-muted-foreground mb-1">Costo Total</p>
-        <p className="font-mono-numbers font-semibold text-lg">{formatCurrency(totalCost)}</p>
+        <CountUp
+          value={totalCost}
+          format={formatCurrency}
+          className="font-mono-numbers font-semibold text-lg"
+        />
       </Card>
-      <Card className="p-4 bg-card border-border text-center">
+      <Card className="p-4 bg-card-glass border-border text-center">
         <p className="text-xs text-muted-foreground mb-1">P&L Total</p>
-        <p className={`font-mono-numbers font-semibold text-lg ${colorForValue(totalPnl)}`}>
-          {formatCurrency(totalPnl)}
-        </p>
-        <p className={`font-mono-numbers text-xs ${colorForValue(totalPnl)}`}>
-          {formatPercent(totalPnlPercent)}
-        </p>
+        <CountUp
+          value={totalPnl}
+          format={formatCurrency}
+          className={`font-mono-numbers font-semibold text-lg ${colorForValue(totalPnl)}`}
+        />
+        <CountUp
+          value={totalPnlPercent}
+          format={formatPercent}
+          className={`font-mono-numbers text-xs ${colorForValue(totalPnl)}`}
+        />
       </Card>
     </div>
   )
