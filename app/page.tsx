@@ -10,6 +10,8 @@ import { useWatchlist } from '@/lib/store/watchlist'
 import { usePortfolio } from '@/lib/store/portfolio'
 import { TrendingUp, Eye, Briefcase, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FadeIn } from '@/components/motion/fade-in'
+import { StaggerContainer, StaggerItem } from '@/components/motion/stagger-container'
 import type { PortfolioPosition } from '@/lib/types'
 
 export default function HomePage() {
@@ -31,7 +33,7 @@ export default function HomePage() {
   return (
     <div className="space-y-10">
       {/* Hero */}
-      <div className="text-center space-y-4 pt-8">
+      <FadeIn className="text-center space-y-4 pt-8">
         <div className="flex items-center justify-center gap-3 mb-2">
           <TrendingUp className="w-10 h-10 text-primary" />
           <h1 className="text-4xl font-bold tracking-tight">StockVision</h1>
@@ -42,10 +44,10 @@ export default function HomePage() {
         <div className="pt-4">
           <SearchBar />
         </div>
-      </div>
+      </FadeIn>
 
       {/* Watchlist */}
-      <div>
+      <FadeIn delay={0.1}>
         <div className="flex items-center gap-2 mb-4">
           <Eye className="w-5 h-5 text-muted-foreground" />
           <h2 className="text-lg font-semibold">Watchlist</h2>
@@ -59,16 +61,18 @@ export default function HomePage() {
             <p className="text-sm mt-1">Buscá un activo y agregalo con la estrella.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {items.map((item) => (
-              <WatchlistCard key={item.ticker} item={item} />
+              <StaggerItem key={item.ticker}>
+                <WatchlistCard item={item} />
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerContainer>
         )}
-      </div>
+      </FadeIn>
 
       {/* Portfolio */}
-      <div>
+      <FadeIn delay={0.2}>
         <div className="flex items-center gap-2 mb-4">
           <Briefcase className="w-5 h-5 text-muted-foreground" />
           <h2 className="text-lg font-semibold">Portafolio</h2>
@@ -93,15 +97,16 @@ export default function HomePage() {
         ) : (
           <div className="space-y-4">
             <PortfolioSummary positions={positions} />
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {positions.map((pos) => (
-                <PortfolioCard
-                  key={pos.ticker}
-                  position={pos}
-                  onEdit={() => handleEditPosition(pos)}
-                />
+                <StaggerItem key={pos.ticker}>
+                  <PortfolioCard
+                    position={pos}
+                    onEdit={() => handleEditPosition(pos)}
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerContainer>
           </div>
         )}
 
@@ -110,10 +115,10 @@ export default function HomePage() {
           onOpenChange={setDialogOpen}
           editingPosition={editingPosition}
         />
-      </div>
+      </FadeIn>
 
       {/* Quick Access */}
-      <div>
+      <FadeIn delay={0.3}>
         <h2 className="text-lg font-semibold mb-4">Acceso Rápido</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
@@ -136,7 +141,7 @@ export default function HomePage() {
             </a>
           ))}
         </div>
-      </div>
+      </FadeIn>
     </div>
   )
 }
