@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { toast } from 'sonner'
 import type { WatchlistItem } from '@/lib/types'
 
 interface WatchlistState {
@@ -21,11 +22,13 @@ export const useWatchlist = create<WatchlistState>()(
         set((state) => ({
           items: [...state.items, { ...item, addedAt: Date.now() }],
         }))
+        toast.success(`${item.ticker} agregado a la watchlist`)
       },
       removeItem: (ticker) => {
         set((state) => ({
           items: state.items.filter((i) => i.ticker !== ticker),
         }))
+        toast.info(`${ticker} eliminado de la watchlist`)
       },
       hasItem: (ticker) => {
         return get().items.some((i) => i.ticker === ticker)

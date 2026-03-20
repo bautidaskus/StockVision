@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Input } from '@/components/ui/input'
 import { Search, TrendingUp, Bitcoin } from 'lucide-react'
 
@@ -88,8 +89,15 @@ export function SearchBar() {
         )}
       </div>
 
-      {isOpen && results.length > 0 && (
-        <div className="absolute top-full mt-1 w-full bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+      <AnimatePresence>
+        {isOpen && results.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97, y: -4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.97, y: -4 }}
+          transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+          className="absolute top-full mt-1 w-full bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden"
+        >
           {results.map((item) => (
             <button
               key={`${item.type}-${item.ticker}`}
@@ -116,8 +124,9 @@ export function SearchBar() {
               </div>
             </button>
           ))}
-        </div>
-      )}
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { toast } from 'sonner'
 import type { PortfolioPosition } from '@/lib/types'
 
 interface PortfolioState {
@@ -27,10 +28,12 @@ export const usePortfolio = create<PortfolioState>()(
                 : p
             ),
           }))
+          toast.success(`Posición de ${pos.ticker} actualizada`)
         } else {
           set((state) => ({
             positions: [...state.positions, { ...pos, addedAt: Date.now() }],
           }))
+          toast.success(`${pos.ticker} agregado al portafolio`)
         }
       },
       updatePosition: (ticker, quantity, averageCost) => {
@@ -39,11 +42,13 @@ export const usePortfolio = create<PortfolioState>()(
             p.ticker === ticker ? { ...p, quantity, averageCost } : p
           ),
         }))
+        toast.success(`Posición de ${ticker} actualizada`)
       },
       removePosition: (ticker) => {
         set((state) => ({
           positions: state.positions.filter((p) => p.ticker !== ticker),
         }))
+        toast.info(`${ticker} eliminado del portafolio`)
       },
       hasPosition: (ticker) => {
         return get().positions.some((p) => p.ticker === ticker)

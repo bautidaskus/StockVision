@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Providers } from '@/components/providers'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const inter = Inter({
@@ -44,6 +45,7 @@ export default function RootLayout({
           <main className="max-w-7xl mx-auto px-4 py-6">
             {children}
           </main>
+          <Toaster position="bottom-right" theme="dark" richColors />
         </Providers>
       </body>
     </html>
