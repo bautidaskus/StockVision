@@ -48,7 +48,7 @@ export function CryptoHeader({ id }: { id: string }) {
 
   return (
     <FadeIn>
-      <div className="p-6 bg-card rounded-lg border border-border">
+      <div className="p-6 bg-card-glass rounded-lg border border-border">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">

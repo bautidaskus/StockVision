@@ -33,7 +33,7 @@ describe('ScreenerResults', () => {
   it('muestra mensaje de carga', () => {
     render(<ScreenerResults results={undefined} isLoading error={null} />)
     // Los skeletons deben estar presentes
-    expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('.animate-shimmer').length).toBeGreaterThan(0)
   })
 
   it('muestra resultados correctamente', () => {
