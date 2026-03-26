@@ -4,14 +4,17 @@
  */
 
 import type { OHLCV, TechnicalIndicators } from './types'
+import { normalizeOhlcvSeries } from './time-series'
 
 export function calculateIndicators(prices: OHLCV[]): TechnicalIndicators {
-  if (prices.length < 2) {
+  const normalized = normalizeOhlcvSeries(prices)
+
+  if (normalized.length < 2) {
     return { rsi: [], macd: [], sma20: [], sma50: [], sma200: [] }
   }
 
   // Prices should be sorted chronologically (oldest first)
-  const sorted = [...prices].sort((a, b) => a.date.localeCompare(b.date))
+  const sorted = normalized
   const closes = sorted.map((p) => p.close)
   const dates = sorted.map((p) => p.date)
 

@@ -11,16 +11,35 @@ import { EarningsSection } from '@/components/stock/earnings-section'
 import { InsidersSection } from '@/components/stock/insiders-section'
 import { AIAnalysisTab } from '@/components/stock/ai-analysis-tab'
 import { NewsSection } from '@/components/stock/news-section'
+import { ClientErrorBoundary } from '@/components/client-error-boundary'
+import { Card } from '@/components/ui/card'
 import { BarChart3, LineChart, Sparkles, Newspaper, Users, CalendarDays, UserCheck } from 'lucide-react'
 
 export default function StockPage() {
   const params = useParams()
-  const ticker = (params.ticker as string).toUpperCase()
+  const rawTicker = params?.ticker
+  const ticker = typeof rawTicker === 'string'
+    ? rawTicker.toUpperCase()
+    : Array.isArray(rawTicker)
+    ? rawTicker[0]?.toUpperCase() || ''
+    : ''
+
+  if (!ticker) {
+    return (
+      <Card className="p-6 bg-card border-border text-center text-muted-foreground">
+        No se pudo resolver el ticker de la acción.
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <StockHeader ticker={ticker} />
-      <OpportunityScoreCard ticker={ticker} />
+      <ClientErrorBoundary title="No se pudo renderizar el encabezado de la acción.">
+        <StockHeader ticker={ticker} />
+      </ClientErrorBoundary>
+      <ClientErrorBoundary title="No se pudo renderizar el Opportunity Score.">
+        <OpportunityScoreCard ticker={ticker} />
+      </ClientErrorBoundary>
 
       <Tabs defaultValue="chart" className="w-full flex-col">
         <TabsList className="bg-card border border-border w-full justify-start overflow-x-auto flex-nowrap">
@@ -55,31 +74,45 @@ export default function StockPage() {
         </TabsList>
 
         <TabsContent value="chart" className="mt-4">
-          <CandlestickChart ticker={ticker} />
+          <ClientErrorBoundary title="No se pudo renderizar el gráfico de la acción.">
+            <CandlestickChart ticker={ticker} />
+          </ClientErrorBoundary>
         </TabsContent>
 
         <TabsContent value="fundamentals" className="mt-4">
-          <FundamentalsTab ticker={ticker} />
+          <ClientErrorBoundary title="No se pudo renderizar la pestaña de fundamentales.">
+            <FundamentalsTab ticker={ticker} />
+          </ClientErrorBoundary>
         </TabsContent>
 
         <TabsContent value="analysts" className="mt-4">
-          <RecommendationsSection ticker={ticker} />
+          <ClientErrorBoundary title="No se pudo renderizar la sección de analistas.">
+            <RecommendationsSection ticker={ticker} />
+          </ClientErrorBoundary>
         </TabsContent>
 
         <TabsContent value="earnings" className="mt-4">
-          <EarningsSection ticker={ticker} />
+          <ClientErrorBoundary title="No se pudo renderizar la sección de earnings.">
+            <EarningsSection ticker={ticker} />
+          </ClientErrorBoundary>
         </TabsContent>
 
         <TabsContent value="insiders" className="mt-4">
-          <InsidersSection ticker={ticker} />
+          <ClientErrorBoundary title="No se pudo renderizar la sección de insiders.">
+            <InsidersSection ticker={ticker} />
+          </ClientErrorBoundary>
         </TabsContent>
 
         <TabsContent value="analysis" className="mt-4">
-          <AIAnalysisTab ticker={ticker} type="stock" />
+          <ClientErrorBoundary title="No se pudo renderizar el análisis IA.">
+            <AIAnalysisTab ticker={ticker} type="stock" />
+          </ClientErrorBoundary>
         </TabsContent>
 
         <TabsContent value="news" className="mt-4">
-          <NewsSection ticker={ticker} />
+          <ClientErrorBoundary title="No se pudo renderizar la sección de noticias.">
+            <NewsSection ticker={ticker} />
+          </ClientErrorBoundary>
         </TabsContent>
       </Tabs>
     </div>

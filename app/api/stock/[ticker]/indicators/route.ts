@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 import { calculateIndicators } from '@/lib/indicators'
+import { normalizeOhlcvSeries, normalizeTechnicalIndicators } from '@/lib/time-series'
 import type { TechnicalIndicators, OHLCV } from '@/lib/types'
 
 export async function GET(
@@ -12,7 +13,10 @@ export async function GET(
 
   try {
     const cached = await getCached<TechnicalIndicators>(key)
-    if (cached) return NextResponse.json(cached)
+    if (cached) {
+      const normalizedCached = normalizeTechnicalIndicators(cached)
+      return NextResponse.json(normalizedCached)
+    }
 
     // Get price history (from our own API route which uses FMP/AV with cache)
     const baseUrl = request.nextUrl.origin
@@ -21,7 +25,7 @@ export async function GET(
       return NextResponse.json({ error: 'Could not fetch price data for indicators' }, { status: 500 })
     }
 
-    const prices: OHLCV[] = await historyRes.json()
+    const prices = normalizeOhlcvSeries(await historyRes.json() as OHLCV[])
     if (!prices || prices.length < 30) {
       return NextResponse.json({ error: 'Not enough price data for indicators' }, { status: 404 })
     }
@@ -37,8 +41,10 @@ export async function GET(
     result.sma50 = result.sma50.slice(-maxPoints)
     result.sma200 = result.sma200.slice(-maxPoints)
 
-    await setCached(key, result, CACHE_TTL.INDICATORS)
-    return NextResponse.json(result)
+    const normalizedResult = normalizeTechnicalIndicators(result)
+
+    await setCached(key, normalizedResult, CACHE_TTL.INDICATORS)
+    return NextResponse.json(normalizedResult)
   } catch (error) {
     console.error('Indicators error:', error)
     const message = error instanceof Error ? error.message : 'Failed to calculate indicators'

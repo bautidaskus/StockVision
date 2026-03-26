@@ -5,11 +5,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CryptoHeader } from '@/components/crypto/crypto-header'
 import { CryptoChart } from '@/components/crypto/crypto-chart'
 import { AIAnalysisTab } from '@/components/stock/ai-analysis-tab'
+import { Card } from '@/components/ui/card'
 import { LineChart, Sparkles } from 'lucide-react'
 
 export default function CryptoPage() {
   const params = useParams()
-  const id = params.id as string
+  const rawId = params?.id
+  const id = typeof rawId === 'string'
+    ? rawId
+    : Array.isArray(rawId)
+    ? rawId[0] || ''
+    : ''
+
+  if (!id) {
+    return (
+      <Card className="p-6 bg-card border-border text-center text-muted-foreground">
+        No se pudo resolver el identificador del activo.
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-6">

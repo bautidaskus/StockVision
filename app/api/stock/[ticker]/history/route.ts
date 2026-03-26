@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getYahooHistory } from '@/lib/apis/yahoo'
 import { getDailyTimeSeries } from '@/lib/apis/alphavantage'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
+import { normalizeOhlcvSeries } from '@/lib/time-series'
 import type { OHLCV } from '@/lib/types'
 
 const RANGE_DAYS: Record<string, number> = {
@@ -25,6 +26,7 @@ export async function GET(
   try {
     // Try cache first (full dataset)
     let allPrices = await getCached<OHLCV[]>(key)
+    let cacheNeedsRefresh = false
 
     if (!allPrices) {
       // Primary: Yahoo Finance (no API key needed, generous limits)
@@ -39,7 +41,16 @@ export async function GET(
         return NextResponse.json({ error: 'No history data found' }, { status: 404 })
       }
 
-      await setCached(key, allPrices, CACHE_TTL.HISTORY)
+      cacheNeedsRefresh = true
+    }
+
+    const normalizedPrices = normalizeOhlcvSeries(allPrices)
+    if (normalizedPrices.length !== allPrices.length) {
+      cacheNeedsRefresh = true
+    }
+
+    if (cacheNeedsRefresh) {
+      await setCached(key, normalizedPrices, CACHE_TTL.HISTORY)
     }
 
     // Filter by range
@@ -47,7 +58,7 @@ export async function GET(
     cutoffDate.setDate(cutoffDate.getDate() - days)
     const cutoffStr = cutoffDate.toISOString().split('T')[0]
 
-    const filtered = allPrices
+    const filtered = normalizedPrices
       .filter((p) => p.date >= cutoffStr)
       .sort((a, b) => a.date.localeCompare(b.date))
 
