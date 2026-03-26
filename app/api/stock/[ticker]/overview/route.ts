@@ -40,12 +40,15 @@ export async function GET(
 
 async function fetchFromFinnhubYahoo(ticker: string): Promise<StockOverview | null> {
   try {
-    // Finnhub for real-time price + basic metrics, Yahoo for profile
-    const [finnhubQuote, finnhubMetrics, yahooData] = await Promise.all([
-      getQuoteFinnhub(ticker).catch(() => null),
-      getBasicFinancials(ticker).catch(() => null),
-      getYahooQuote(ticker).catch(() => null),
-    ])
+    const hasFinnhubKey = Boolean(process.env.FINNHUB_API_KEY)
+    const yahooData = await getYahooQuote(ticker).catch(() => null)
+
+    const [finnhubQuote, finnhubMetrics] = hasFinnhubKey
+      ? await Promise.all([
+          getQuoteFinnhub(ticker).catch(() => null),
+          getBasicFinancials(ticker).catch(() => null),
+        ])
+      : [null, null]
 
     // Need at least Finnhub quote or Yahoo data
     if (!finnhubQuote?.price && !yahooData?.price) return null

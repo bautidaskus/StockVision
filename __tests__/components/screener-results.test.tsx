@@ -18,9 +18,17 @@ const mockResults: ScreenerResult[] = [
     netMargin: null,
     beta: 1.2,
     dividendYield: 0.005,
+    debtToEquity: 0.8,
     week52High: 200,
     week52Low: 140,
     changePercent: 1.5,
+    opportunityScore: 78,
+    opportunityRating: 'Muy atractiva',
+    valuationScore: 70,
+    qualityScore: 82,
+    momentumScore: 76,
+    eventsScore: 68,
+    reasons: ['P/E: 28.5'],
   },
 ]
 
@@ -40,6 +48,7 @@ describe('ScreenerResults', () => {
     render(<ScreenerResults results={mockResults} isLoading={false} error={null} />)
     expect(screen.getByText('AAPL')).toBeDefined()
     expect(screen.getByText('1 resultado encontrado')).toBeDefined()
+    expect(screen.getByText('Muy atractiva')).toBeDefined()
   })
 
   it('muestra mensaje vacío cuando no hay resultados', () => {

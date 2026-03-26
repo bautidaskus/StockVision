@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { screenStocks } from '@/lib/apis/fmp'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
+import { rankStocks } from '@/lib/ranking/stock-ranking'
 import type { ScreenerFilters, ScreenerResult } from '@/lib/types'
 
 // Parsear parámetros numéricos de forma segura
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const cached = await getCached<ScreenerResult[]>(key)
     if (cached) return NextResponse.json(cached)
 
-    const results = await screenStocks(filters)
+    const results = await rankStocks(filters)
     await setCached(key, results, CACHE_TTL.SCREENER)
     return NextResponse.json(results)
   } catch (error) {

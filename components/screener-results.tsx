@@ -10,7 +10,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { formatCurrency, formatLargeNumber, formatPercent, colorForValue } from '@/lib/format'
 import type { ScreenerResult } from '@/lib/types'
 
-type SortKey = keyof Pick<ScreenerResult, 'ticker' | 'marketCap' | 'price' | 'pe' | 'beta' | 'dividendYield' | 'changePercent'>
+type SortKey = keyof Pick<ScreenerResult, 'ticker' | 'marketCap' | 'price' | 'pe' | 'beta' | 'dividendYield' | 'changePercent' | 'opportunityScore'>
 type SortDir = 'asc' | 'desc'
 
 interface Column {
@@ -21,6 +21,7 @@ interface Column {
 }
 
 const COLUMNS: Column[] = [
+  { key: 'opportunityScore', label: 'Score',     sortable: true, align: 'right' },
   { key: 'ticker',        label: 'Ticker',    sortable: true, align: 'left'  },
   { key: 'price',         label: 'Precio',    sortable: true, align: 'right' },
   { key: 'changePercent', label: 'Cambio %',  sortable: true, align: 'right' },
@@ -38,7 +39,7 @@ interface ScreenerResultsProps {
 
 export function ScreenerResults({ results, isLoading, error }: ScreenerResultsProps) {
   const router = useRouter()
-  const [sortKey, setSortKey] = useState<SortKey>('marketCap')
+  const [sortKey, setSortKey] = useState<SortKey>('opportunityScore')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   function handleSort(key: SortKey) {
@@ -145,9 +146,22 @@ export function ScreenerResults({ results, isLoading, error }: ScreenerResultsPr
                   }`}
                   onClick={() => router.push(`/stock/${item.ticker}`)}
                 >
+                  <td className="py-3 px-4 text-right">
+                    <div className="font-mono-numbers font-semibold">
+                      {item.opportunityScore ?? <span className="text-muted-foreground">N/A</span>}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {item.opportunityRating || '—'}
+                    </div>
+                  </td>
                   <td className="py-3 px-4">
                     <div className="font-mono-numbers font-semibold">{item.ticker}</div>
                     <div className="text-xs text-muted-foreground truncate max-w-[160px]">{item.name}</div>
+                    {item.reasons && item.reasons.length > 0 && (
+                      <div className="text-[11px] text-muted-foreground truncate max-w-[220px] mt-0.5">
+                        {item.reasons[0]}
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-right font-mono-numbers">
                     {formatCurrency(item.price)}
