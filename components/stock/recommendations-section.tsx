@@ -66,7 +66,7 @@ export function RecommendationsSection({ ticker }: { ticker: string }) {
   ]
 
   const historyData = data.recommendations.slice(0, 4).reverse().map((rec) => ({
-    period: rec.period.slice(0, 7), // YYYY-MM
+    period: formatRecommendationPeriod(rec.period),
     'Compra Fuerte': rec.strongBuy,
     Compra: rec.buy,
     Mantener: rec.hold,
@@ -130,4 +130,14 @@ export function RecommendationsSection({ ticker }: { ticker: string }) {
       )}
     </div>
   )
+}
+
+function formatRecommendationPeriod(period: string) {
+  if (/^\d{4}-\d{2}/.test(period)) return period.slice(0, 7)
+  if (period === '0m') return 'Actual'
+
+  const match = period.match(/^-(\d+)m$/)
+  if (match) return `Hace ${match[1]}m`
+
+  return period || 'N/A'
 }

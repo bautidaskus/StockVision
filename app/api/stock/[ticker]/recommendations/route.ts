@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getRecommendationTrends } from '@/lib/apis/finnhub'
+import { getYahooRecommendationTrend } from '@/lib/apis/yahoo'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 import type { AnalystRecommendation } from '@/lib/types'
 
@@ -45,7 +46,18 @@ export async function GET(
     const cached = await getCached<RecommendationsResponse>(key)
     if (cached) return NextResponse.json(cached)
 
-    const recommendations = await getRecommendationTrends(ticker)
+    let recommendations = await getRecommendationTrends(ticker).catch((error) => {
+      console.warn('Finnhub recommendations failed:', error)
+      return []
+    })
+
+    if (recommendations.length === 0) {
+      recommendations = await getYahooRecommendationTrend(ticker).catch((error) => {
+        console.warn('Yahoo recommendations failed:', error)
+        return []
+      })
+    }
+
     const { consensus, totalAnalysts } = calculateConsensus(recommendations)
     const response: RecommendationsResponse = { recommendations, consensus, totalAnalysts }
 

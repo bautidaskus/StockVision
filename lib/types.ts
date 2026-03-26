@@ -46,23 +46,23 @@ export interface TechnicalIndicators {
 export interface FinancialStatement {
   date: string
   period: string
-  revenue: number
-  costOfRevenue: number
-  grossProfit: number
-  grossProfitRatio: number
-  operatingIncome: number
-  netIncome: number
-  netIncomeRatio: number
-  eps: number
-  epsDiluted: number
-  ebitda: number
-  totalAssets: number
-  totalLiabilities: number
-  totalEquity: number
-  totalDebt: number
-  cashAndEquivalents: number
-  operatingCashFlow: number
-  freeCashFlow: number
+  revenue: number | null
+  costOfRevenue: number | null
+  grossProfit: number | null
+  grossProfitRatio: number | null
+  operatingIncome: number | null
+  netIncome: number | null
+  netIncomeRatio: number | null
+  eps: number | null
+  epsDiluted: number | null
+  ebitda: number | null
+  totalAssets: number | null
+  totalLiabilities: number | null
+  totalEquity: number | null
+  totalDebt: number | null
+  cashAndEquivalents: number | null
+  operatingCashFlow: number | null
+  freeCashFlow: number | null
   roe: number | null
   roa: number | null
   debtToEquity: number | null

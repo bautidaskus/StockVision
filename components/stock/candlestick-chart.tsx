@@ -22,11 +22,6 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
   const [showVolume, setShowVolume] = useState(true)
   const [showSma, setShowSma] = useState<Record<string, boolean>>({ sma20: false, sma50: false, sma200: false })
 
-  // Store indicators + showSma in refs so chart effect doesn't re-run when they change
-  const indicatorsRef = useRef<TechnicalIndicators | undefined>(undefined)
-  const showSmaRef = useRef(showSma)
-  showSmaRef.current = showSma
-
   const range = timeframe.toLowerCase()
 
   const { data: history, isLoading: historyLoading } = useQuery<OHLCV[]>({
@@ -47,19 +42,13 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
     },
   })
 
-  // Keep indicatorsRef current; re-run chart effect when indicators first arrive
-  const indicatorsReady = useRef(false)
-  if (indicators && !indicatorsReady.current) {
-    indicatorsReady.current = true
-  }
-  indicatorsRef.current = indicators
-
   // ── Main candlestick chart ─────────────────────────────────────────
-  // Only re-runs when history or showVolume changes — NOT when indicators change
   useEffect(() => {
     if (!containerRef.current || !history || history.length === 0) return
 
+    const currentHistory = history
     let disposed = false
+    let resizeHandler: (() => void) | null = null
 
     async function initChart() {
       const { createChart, CandlestickSeries, HistogramSeries, LineSeries } = await import('lightweight-charts')
@@ -100,7 +89,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
       })
 
       candleSeries.setData(
-        history!.map((d) => ({
+        currentHistory.map((d) => ({
           time: d.date,
           open: d.open,
           high: d.high,
@@ -117,7 +106,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         })
         chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
         volumeSeries.setData(
-          history!.map((d) => ({
+          currentHistory.map((d) => ({
             time: d.date,
             value: d.volume,
             color: d.close >= d.open ? '#00c89633' : '#ff475733',
@@ -125,15 +114,13 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         )
       }
 
-      // SMA overlays — read from refs so this doesn't need them as deps
-      const currentIndicators = indicatorsRef.current
-      const currentShowSma = showSmaRef.current
-      if (currentIndicators) {
-        const dateSet = new Set(history!.map((d) => d.date))
-        Object.entries(currentShowSma).forEach(([key, visible]) => {
+      // SMA overlays
+      if (indicators) {
+        const dateSet = new Set(currentHistory.map((d) => d.date))
+        Object.entries(showSma).forEach(([key, visible]) => {
           if (!visible) return
           const smaKey = key as keyof typeof SMA_COLORS
-          const smaData = currentIndicators[smaKey as keyof TechnicalIndicators] as Array<{ date: string; value: number }> | undefined
+          const smaData = indicators[smaKey as keyof TechnicalIndicators] as Array<{ date: string; value: number }> | undefined
           if (!smaData) return
           const series = chart.addSeries(LineSeries, {
             color: SMA_COLORS[smaKey],
@@ -152,32 +139,33 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
 
       chart.timeScale().fitContent()
 
-      const handleResize = () => {
+      resizeHandler = () => {
         if (containerRef.current && chart) {
           chart.applyOptions({ width: containerRef.current.clientWidth })
         }
       }
-      window.addEventListener('resize', handleResize)
-      return () => window.removeEventListener('resize', handleResize)
+      window.addEventListener('resize', resizeHandler)
     }
 
     initChart()
 
     return () => {
       disposed = true
+      if (resizeHandler) window.removeEventListener('resize', resizeHandler)
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history, showVolume, showSma]) // showSma triggers rebuild for SMA toggle; indicators excluded intentionally
+  }, [history, indicators, showVolume, showSma])
 
   // ── RSI + MACD sub-chart ───────────────────────────────────────────
   useEffect(() => {
     if (!rsiContainerRef.current || !indicators || !history || history.length === 0) return
 
+    const currentHistory = history
     let disposed = false
+    let resizeHandler: (() => void) | null = null
 
     async function initRsiChart() {
       const { createChart, LineSeries, HistogramSeries } = await import('lightweight-charts')
@@ -188,7 +176,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         rsiChartRef.current = null
       }
 
-      const dateSet = new Set(history!.map((d) => d.date))
+      const dateSet = new Set(currentHistory.map((d) => d.date))
 
       const chart = createChart(rsiContainerRef.current, {
         width: rsiContainerRef.current.clientWidth,
@@ -273,19 +261,19 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
 
       chart.timeScale().fitContent()
 
-      const handleResize = () => {
+      resizeHandler = () => {
         if (rsiContainerRef.current && chart) {
           chart.applyOptions({ width: rsiContainerRef.current.clientWidth })
         }
       }
-      window.addEventListener('resize', handleResize)
-      return () => window.removeEventListener('resize', handleResize)
+      window.addEventListener('resize', resizeHandler)
     }
 
     initRsiChart()
 
     return () => {
       disposed = true
+      if (resizeHandler) window.removeEventListener('resize', resizeHandler)
       if (rsiChartRef.current) {
         rsiChartRef.current.remove()
         rsiChartRef.current = null

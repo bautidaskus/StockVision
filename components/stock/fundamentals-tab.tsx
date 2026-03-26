@@ -5,7 +5,13 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { formatCurrency, formatLargeNumber, formatQuarter, safeFixed } from '@/lib/format'
-import type { StockOverview } from '@/lib/types'
+import type { FinancialStatement, StockOverview } from '@/lib/types'
+
+interface FinancialsResponse {
+  statements: FinancialStatement[]
+  estimates: unknown
+  ratios: unknown[]
+}
 
 export function FundamentalsTab({ ticker }: { ticker: string }) {
   const { data: overview } = useQuery<StockOverview>({
@@ -17,7 +23,7 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
     },
   })
 
-  const { data: financials, isLoading } = useQuery({
+  const { data: financials, isLoading } = useQuery<FinancialsResponse>({
     queryKey: ['stock-financials', ticker],
     queryFn: async () => {
       const res = await fetch(`/api/stock/${ticker}/financials?period=quarterly&limit=8`)
@@ -43,17 +49,23 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
   const latestStatement = statements[0] || {}
 
   // Revenue + Net Income chart data (reverse for chronological order)
-  const revenueChartData = [...statements].reverse().map((s: Record<string, unknown>) => ({
-    quarter: formatQuarter(s.date as string),
-    Revenue: Number(s.revenue) || 0,
-    'Net Income': Number(s.netIncome) || 0,
-  }))
+  const revenueChartData = [...statements]
+    .reverse()
+    .filter((s) => s.revenue != null || s.netIncome != null)
+    .map((s) => ({
+      quarter: formatQuarter(s.date),
+      Revenue: s.revenue,
+      'Net Income': s.netIncome,
+    }))
 
   // EPS chart data
-  const epsChartData = [...statements].reverse().map((s: Record<string, unknown>) => ({
-    quarter: formatQuarter(s.date as string),
-    EPS: Number(s.epsDiluted) || 0,
-  }))
+  const epsChartData = [...statements]
+    .reverse()
+    .filter((s) => s.epsDiluted != null)
+    .map((s) => ({
+      quarter: formatQuarter(s.date),
+      EPS: s.epsDiluted,
+    }))
 
   const tooltipStyle = {
     contentStyle: {
@@ -86,11 +98,11 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <MetricCard
             label="Margen Bruto"
-            value={latestStatement.grossProfitRatio ? `${(Number(latestStatement.grossProfitRatio) * 100).toFixed(1)}%` : 'N/A'}
+            value={latestStatement.grossProfitRatio != null ? `${(Number(latestStatement.grossProfitRatio) * 100).toFixed(1)}%` : 'N/A'}
           />
           <MetricCard
             label="Margen Neto"
-            value={latestStatement.netIncomeRatio ? `${(Number(latestStatement.netIncomeRatio) * 100).toFixed(1)}%` : 'N/A'}
+            value={latestStatement.netIncomeRatio != null ? `${(Number(latestStatement.netIncomeRatio) * 100).toFixed(1)}%` : 'N/A'}
           />
           <MetricCard
             label="ROE"
@@ -147,7 +159,7 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
               <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => `$${formatLargeNumber(v)}`} />
               <Tooltip
                 {...tooltipStyle}
-                formatter={(value) => [`$${formatLargeNumber(Number(value))}`, undefined]}
+                formatter={(value) => value == null ? ['N/A', undefined] : [`$${formatLargeNumber(Number(value))}`, undefined]}
               />
               <Legend wrapperStyle={{ fontSize: '12px', color: '#71717a' }} />
               <Bar dataKey="Revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
@@ -165,10 +177,10 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
             <BarChart data={epsChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a2a35" />
               <XAxis dataKey="quarter" tick={{ fill: '#71717a', fontSize: 11 }} />
-              <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => v != null && !isNaN(v) ? `$${v.toFixed(2)}` : ''} />
+              <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => typeof v === 'number' && !isNaN(v) ? `$${v.toFixed(2)}` : ''} />
               <Tooltip
                 {...tooltipStyle}
-                formatter={(value) => [formatCurrency(Number(value)), 'EPS']}
+                formatter={(value) => value == null ? ['N/A', 'EPS'] : [formatCurrency(Number(value)), 'EPS']}
               />
               <Bar dataKey="EPS" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>

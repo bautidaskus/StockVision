@@ -12,7 +12,7 @@ export function CryptoChart({ id }: { id: string }) {
   const chartRef = useRef<ReturnType<typeof import('lightweight-charts').createChart> | null>(null)
   const [timeframe, setTimeframe] = useState<string>('1Y')
 
-  const range = timeframe.toLowerCase().replace('m', 'm').replace('y', 'y')
+  const range = timeframe.toLowerCase()
 
   const { data: history, isLoading } = useQuery({
     queryKey: ['crypto-history', id, range],
@@ -27,6 +27,7 @@ export function CryptoChart({ id }: { id: string }) {
     if (!containerRef.current || !history?.prices || history.prices.length === 0) return
 
     let disposed = false
+    let resizeHandler: (() => void) | null = null
 
     async function initChart() {
       const { createChart, AreaSeries, HistogramSeries } = await import('lightweight-charts')
@@ -105,22 +106,19 @@ export function CryptoChart({ id }: { id: string }) {
 
       chart.timeScale().fitContent()
 
-      const handleResize = () => {
+      resizeHandler = () => {
         if (containerRef.current && chart) {
           chart.applyOptions({ width: containerRef.current.clientWidth })
         }
       }
-      window.addEventListener('resize', handleResize)
-
-      return () => {
-        window.removeEventListener('resize', handleResize)
-      }
+      window.addEventListener('resize', resizeHandler)
     }
 
     initChart()
 
     return () => {
       disposed = true
+      if (resizeHandler) window.removeEventListener('resize', resizeHandler)
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
