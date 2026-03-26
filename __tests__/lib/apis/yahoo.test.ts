@@ -198,9 +198,10 @@ describe('getYahooFinancials', () => {
 
     expect(mockYf.fundamentalsTimeSeries).toHaveBeenCalled()
     expect(result.statements).toHaveLength(1)
-    expect(result.statements[0]).toEqual({
+    expect(result.statements[0]).toMatchObject({
       date: '2025-03-31',
       period: 'Q',
+      source: 'yahoo',
       revenue: 1000,
       costOfRevenue: 400,
       grossProfit: 600,

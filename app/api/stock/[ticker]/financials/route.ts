@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getYahooFinancials } from '@/lib/apis/yahoo'
+import { getNormalizedFinancials } from '@/lib/fundamentals'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 
 export async function GET(
@@ -15,10 +15,11 @@ export async function GET(
     const cached = await getCached(key)
     if (cached) return NextResponse.json(cached)
 
-    const financials = await getYahooFinancials(ticker, period, limit)
+    const financials = await getNormalizedFinancials(ticker, period, limit)
 
     const result = {
       statements: financials.statements,
+      sourceSummary: financials.sourceSummary,
       estimates: null, // Yahoo free doesn't provide analyst estimates easily
       ratios: [],
     }

@@ -81,6 +81,7 @@ export async function getYahooQuote(ticker: string) {
     beta: detail.beta || null,
     week52High: detail.fiftyTwoWeekHigh || 0,
     week52Low: detail.fiftyTwoWeekLow || 0,
+    priceToSales: detail.priceToSalesTrailing12Months || null,
     priceToBook: stats.priceToBook || null,
     pegRatio: stats.pegRatio || null,
     enterpriseToEbitda: stats.enterpriseToEbitda || null,
@@ -270,6 +271,10 @@ export async function getYahooFinancials(ticker: string, period: 'quarterly' | '
       return {
         date,
         period: period === 'quarterly' ? 'Q' : 'FY',
+        source: 'yahoo' as const,
+        filedAt: null,
+        fiscalYear: null,
+        fiscalPeriod: null,
         revenue,
         costOfRevenue: pickNumber(entry.costOfRevenue, entry.reconciledCostOfRevenue),
         grossProfit,
@@ -289,6 +294,9 @@ export async function getYahooFinancials(ticker: string, period: 'quarterly' | '
           entry.cashCashEquivalentsAndShortTermInvestments,
           entry.cashFinancial,
         ),
+        currentAssets: pickNumber(entry.currentAssets),
+        currentLiabilities: pickNumber(entry.currentLiabilities),
+        sharesOutstandingPeriod: pickNumber(entry.ordinarySharesNumber, entry.shareIssued),
         operatingCashFlow,
         freeCashFlow: pickNumber(entry.freeCashFlow),
         roe: totalEquity != null && netIncome != null && totalEquity !== 0 ? netIncome / totalEquity : null,
@@ -334,4 +342,24 @@ export async function getYahooNews(query: string, limit = 10): Promise<NewsItem[
     source: String(item.publisher || ''),
     image: item.thumbnail?.resolutions?.[0]?.url || '',
   }))
+}
+
+export async function getYahooScreenerSymbols(scrIds: string[], count = 25): Promise<string[]> {
+  const results = await Promise.all(
+    scrIds.map((scrId) =>
+      yf.screener({ scrIds: scrId, count }).catch(() => null)
+    )
+  )
+
+  const symbols = new Set<string>()
+  for (const result of results) {
+    for (const quote of result?.quotes || []) {
+      const symbol = String(quote.symbol || '').toUpperCase()
+      if (/^[A-Z][A-Z.-]{0,6}$/.test(symbol)) {
+        symbols.add(symbol)
+      }
+    }
+  }
+
+  return Array.from(symbols)
 }

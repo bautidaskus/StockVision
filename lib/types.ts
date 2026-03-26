@@ -46,6 +46,10 @@ export interface TechnicalIndicators {
 export interface FinancialStatement {
   date: string
   period: string
+  source?: 'yahoo' | 'sec' | 'merged'
+  filedAt?: string | null
+  fiscalYear?: number | null
+  fiscalPeriod?: string | null
   revenue: number | null
   costOfRevenue: number | null
   grossProfit: number | null
@@ -61,6 +65,9 @@ export interface FinancialStatement {
   totalEquity: number | null
   totalDebt: number | null
   cashAndEquivalents: number | null
+  currentAssets?: number | null
+  currentLiabilities?: number | null
+  sharesOutstandingPeriod?: number | null
   operatingCashFlow: number | null
   freeCashFlow: number | null
   roe: number | null
@@ -225,7 +232,52 @@ export interface ScreenerResult {
   netMargin: number | null     // en decimal, ej: 0.12 = 12%
   beta: number | null
   dividendYield: number | null // en decimal, ej: 0.03 = 3%
+  debtToEquity?: number | null
   week52High: number
   week52Low: number
   changePercent: number        // cambio % del día
+  opportunityScore?: number | null
+  opportunityRating?: OpportunityRating
+  valuationScore?: number | null
+  qualityScore?: number | null
+  momentumScore?: number | null
+  eventsScore?: number | null
+  reasons?: string[]
+}
+
+export type OpportunityRating =
+  | 'Muy atractiva'
+  | 'Atractiva'
+  | 'Neutral'
+  | 'Débil'
+  | 'Evitar'
+  | 'Sin datos'
+
+export interface ScoreSignal {
+  label: string
+  value: string
+  impact: 'positive' | 'neutral' | 'negative'
+}
+
+export interface ScorePillar {
+  score: number | null
+  weight: number
+  confidence: number
+  signals: ScoreSignal[]
+}
+
+export interface OpportunityScore {
+  ticker: string
+  name: string
+  overall: number | null
+  rating: OpportunityRating
+  confidence: number
+  asOfDate: string
+  summary: string[]
+  pillars: {
+    valuation: ScorePillar
+    quality: ScorePillar
+    momentum: ScorePillar
+    events: ScorePillar
+  }
 }
