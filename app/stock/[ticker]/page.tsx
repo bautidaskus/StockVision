@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { StockHeader } from '@/components/stock/stock-header'
+import { OpportunityScoreCard } from '@/components/stock/opportunity-score-card'
 import { CandlestickChart } from '@/components/stock/candlestick-chart'
 import { FundamentalsTab } from '@/components/stock/fundamentals-tab'
 import { RecommendationsSection } from '@/components/stock/recommendations-section'
@@ -19,6 +20,7 @@ export default function StockPage() {
   return (
     <div className="space-y-6">
       <StockHeader ticker={ticker} />
+      <OpportunityScoreCard ticker={ticker} />
 
       <Tabs defaultValue="chart" className="w-full flex-col">
         <TabsList className="bg-card border border-border w-full justify-start overflow-x-auto flex-nowrap">

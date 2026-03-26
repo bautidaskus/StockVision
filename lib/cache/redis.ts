@@ -12,6 +12,8 @@ export const CACHE_TTL = {
   EARNINGS: 86400,       // 24 hours
   INSIDERS: 86400,       // 24 hours
   SCREENER: 3600,        // 1 hour
+  SCORE: 21600,          // 6 hours
+  UNIVERSE: 86400,       // 24 hours
 } as const
 
 let redis: Redis | null = null
