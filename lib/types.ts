@@ -243,6 +243,9 @@ export interface ScreenerResult {
   momentumScore?: number | null
   eventsScore?: number | null
   reasons?: string[]
+  primaryDataSource?: 'fmp-screener'
+  scoreSource?: 'yahoo-enrichment' | null
+  scoreStatus?: 'not-requested' | 'ready' | 'unavailable'
 }
 
 export type OpportunityRating =

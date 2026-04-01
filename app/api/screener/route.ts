@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
-import { rankStocks } from '@/lib/ranking/stock-ranking'
 import { createRequestPerformanceTracker, measureStage } from '@/lib/observability/performance'
-import type { ScreenerFilters, ScreenerResult } from '@/lib/types'
+import { rankStocks } from '@/lib/ranking/stock-ranking'
+import { parseScoreWindow, parseScreenerFilters } from '@/lib/screener/filters'
+import { enrichScreenerResults, runEquivalentFastScreener, runScreener } from '@/lib/screener/service'
+import type { ScreenerResult } from '@/lib/types'
 
-// Parsear parámetros numéricos de forma segura
-function parseNum(value: string | null): number | undefined {
-  if (!value) return undefined
-  const n = parseFloat(value)
-  return isNaN(n) ? undefined : n
-}
+const FMP_FAILURE_COOLDOWN_MS = 15 * 60 * 1000
+let fmpFastPathBlockedUntil = 0
 
 // Generar una clave de caché determinista desde los filtros activos
 function buildCacheKey(params: URLSearchParams): string {
@@ -22,32 +20,40 @@ function buildCacheKey(params: URLSearchParams): string {
   return cacheKey('screener', sorted || 'all')
 }
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl
-
-  // Construir el objeto de filtros
-  const filters: ScreenerFilters = {
-    exchange: (searchParams.get('exchange') as ScreenerFilters['exchange']) || undefined,
-    sector: searchParams.get('sector') || undefined,
-    marketCapMin: parseNum(searchParams.get('marketCapMin')),
-    marketCapMax: parseNum(searchParams.get('marketCapMax')),
-    peMin: parseNum(searchParams.get('peMin')),
-    peMax: parseNum(searchParams.get('peMax')),
-    pbMin: parseNum(searchParams.get('pbMin')),
-    pbMax: parseNum(searchParams.get('pbMax')),
-    roeMin: parseNum(searchParams.get('roeMin')),
-    netMarginMin: parseNum(searchParams.get('netMarginMin')),
-    betaMin: parseNum(searchParams.get('betaMin')),
-    betaMax: parseNum(searchParams.get('betaMax')),
-    debtToEquityMax: parseNum(searchParams.get('debtToEquityMax')),
-    dividendMin: parseNum(searchParams.get('dividendMin')),
-    limit: parseNum(searchParams.get('limit')) || 50,
+async function runFastPathWithFallback(filters: ReturnType<typeof parseScreenerFilters>, scoreWindow: number) {
+  if (Date.now() >= fmpFastPathBlockedUntil) {
+    try {
+      return await runScreener(filters, { scoreWindow })
+    } catch (fastPathError) {
+      const message = fastPathError instanceof Error ? fastPathError.message : String(fastPathError)
+      if (message.includes('FMP error: 402') || message.includes('FMP error: 403')) {
+        fmpFastPathBlockedUntil = Date.now() + FMP_FAILURE_COOLDOWN_MS
+      }
+      console.warn('Screener fast path failed, trying equivalent fast path:', fastPathError)
+    }
   }
 
+  try {
+    return await runEquivalentFastScreener(filters, { scoreWindow })
+  } catch (equivalentError) {
+    console.warn('Equivalent fast path failed, falling back to legacy ranking:', equivalentError)
+    return rankStocks(filters)
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl
+  const filters = parseScreenerFilters(searchParams)
+  const scoreWindow = parseScoreWindow(searchParams)
   const key = buildCacheKey(searchParams)
+  const baseParams = new URLSearchParams(searchParams)
+  baseParams.delete('scoreWindow')
+  const baseKey = buildCacheKey(baseParams)
   const perf = createRequestPerformanceTracker('/api/screener', request, {
     filters,
+    scoreWindow,
     cacheKey: key,
+    baseCacheKey: baseKey,
   })
 
   try {
@@ -59,10 +65,28 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(cached)
       }
 
-      const results = await measureStage('screener.rankStocks', () => rankStocks(filters))
+      let results: ScreenerResult[]
+
+      if (scoreWindow > 0) {
+        const baseCached = await measureStage('cache.get-base', () => getCached<ScreenerResult[]>(baseKey))
+        perf.recordCacheGet(baseKey, Boolean(baseCached))
+        if (baseCached) {
+          results = await measureStage('screener.enrich-from-base-cache', () =>
+            enrichScreenerResults(baseCached, scoreWindow))
+        } else {
+          results = await measureStage('screener.run', () => runFastPathWithFallback(filters, scoreWindow))
+        }
+      } else {
+        results = await measureStage('screener.run', () => runFastPathWithFallback(filters, scoreWindow))
+      }
+
       await measureStage('cache.set', () => setCached(key, results, CACHE_TTL.SCREENER))
       perf.recordCacheSet(key, CACHE_TTL.SCREENER)
-      perf.finish(results, 200, { resultCount: results.length, source: 'live' })
+      perf.finish(results, 200, {
+        resultCount: results.length,
+        source: 'live',
+        scoreWindow,
+      })
       return NextResponse.json(results)
     })
   } catch (error) {

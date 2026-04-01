@@ -1,6 +1,7 @@
 import { measureProvider } from '@/lib/observability/performance'
 
-const BASE_URL = 'https://financialmodelingprep.com/api/v3'
+const LEGACY_BASE_URL = 'https://financialmodelingprep.com/api/v3'
+const STABLE_BASE_URL = 'https://financialmodelingprep.com/stable'
 
 function apiKey(): string {
   return process.env.FMP_API_KEY || ''
@@ -8,7 +9,7 @@ function apiKey(): string {
 
 async function fetchFMP(endpoint: string, params: Record<string, string> = {}) {
   return measureProvider('fmp', endpoint, async () => {
-    const url = new URL(`${BASE_URL}${endpoint}`)
+    const url = new URL(`${LEGACY_BASE_URL}${endpoint}`)
     url.searchParams.set('apikey', apiKey())
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, v)
@@ -17,6 +18,23 @@ async function fetchFMP(endpoint: string, params: Record<string, string> = {}) {
     if (!res.ok) throw new Error(`FMP error: ${res.status}`)
     const data = await res.json()
     // FMP returns { "Error Message": "..." } on some errors
+    if (data && typeof data === 'object' && !Array.isArray(data) && data['Error Message']) {
+      throw new Error(`FMP: ${data['Error Message']}`)
+    }
+    return data
+  }, { params })
+}
+
+async function fetchFMPStable(endpoint: string, params: Record<string, string> = {}) {
+  return measureProvider('fmp', endpoint, async () => {
+    const url = new URL(`${STABLE_BASE_URL}${endpoint}`)
+    url.searchParams.set('apikey', apiKey())
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v)
+    }
+    const res = await fetch(url.toString())
+    if (!res.ok) throw new Error(`FMP error: ${res.status}`)
+    const data = await res.json()
     if (data && typeof data === 'object' && !Array.isArray(data) && data['Error Message']) {
       throw new Error(`FMP: ${data['Error Message']}`)
     }
@@ -125,7 +143,7 @@ export async function screenStocks(filters: import('@/lib/types').ScreenerFilter
   // Volumen mínimo para evitar acciones illíquidas
   params.volumeMoreThan = '100000'
 
-  const data = await fetchFMP('/stock-screener', params)
+  const data = await fetchFMPStable('/company-screener', params)
 
   if (!Array.isArray(data)) return []
 
@@ -143,9 +161,10 @@ export async function screenStocks(filters: import('@/lib/types').ScreenerFilter
     netMargin: pickNumber(item, ['netProfitMargin', 'netProfitMarginTTM', 'netMargin']) ?? null,
     beta: item.beta != null ? Number(item.beta) : null,
     dividendYield: item.dividendYield != null ? Number(item.dividendYield) : null,
+    debtToEquity: pickNumber(item, ['debtToEquity']) ?? null,
     week52High: pickNumber(item, ['52WeekHigh', 'yearHigh', 'week52High']) || 0,
     week52Low: pickNumber(item, ['52WeekLow', 'yearLow', 'week52Low']) || 0,
-    changePercent: Number(item.changesPercentage) || 0,
+    changePercent: pickNumber(item, ['changesPercentage', 'changePercent']) || 0,
   }))
 }
 

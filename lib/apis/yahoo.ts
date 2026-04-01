@@ -94,6 +94,31 @@ export async function getYahooQuote(ticker: string) {
   }
 }
 
+export async function getYahooQuotes(tickers: string[]) {
+  if (tickers.length === 0) return []
+
+  return measureProvider('yahoo', 'quote.batch', () =>
+    yf.quote(tickers, {
+      fields: [
+        'symbol',
+        'shortName',
+        'longName',
+        'exchange',
+        'fullExchangeName',
+        'regularMarketPrice',
+        'regularMarketChangePercent',
+        'marketCap',
+        'trailingPE',
+        'priceToBook',
+        'beta',
+        'dividendYield',
+        'fiftyTwoWeekHigh',
+        'fiftyTwoWeekLow',
+      ],
+      return: 'array',
+    }), { count: tickers.length })
+}
+
 // ─── Historical Prices ─────────────────────────────────────────────
 
 export async function getYahooHistory(ticker: string, years = 5) {
