@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
 import { rankStocks } from '@/lib/ranking/stock-ranking'
+import { createRequestPerformanceTracker, measureStage } from '@/lib/observability/performance'
 import type { ScreenerFilters, ScreenerResult } from '@/lib/types'
 
 // Parsear parámetros numéricos de forma segura
@@ -14,7 +15,7 @@ function parseNum(value: string | null): number | undefined {
 function buildCacheKey(params: URLSearchParams): string {
   // Ordenar los parámetros para que el mismo filtro siempre genere la misma key
   const sorted = Array.from(params.entries())
-    .filter(([, v]) => v !== '')
+    .filter(([k, v]) => k !== '__perf' && v !== '')
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join('&')
@@ -44,17 +45,30 @@ export async function GET(request: NextRequest) {
   }
 
   const key = buildCacheKey(searchParams)
+  const perf = createRequestPerformanceTracker('/api/screener', request, {
+    filters,
+    cacheKey: key,
+  })
 
   try {
-    const cached = await getCached<ScreenerResult[]>(key)
-    if (cached) return NextResponse.json(cached)
+    return await perf.run(async () => {
+      const cached = await measureStage('cache.get', () => getCached<ScreenerResult[]>(key))
+      perf.recordCacheGet(key, Boolean(cached))
+      if (cached) {
+        perf.finish(cached, 200, { resultCount: cached.length, source: 'cache' })
+        return NextResponse.json(cached)
+      }
 
-    const results = await rankStocks(filters)
-    await setCached(key, results, CACHE_TTL.SCREENER)
-    return NextResponse.json(results)
+      const results = await measureStage('screener.rankStocks', () => rankStocks(filters))
+      await measureStage('cache.set', () => setCached(key, results, CACHE_TTL.SCREENER))
+      perf.recordCacheSet(key, CACHE_TTL.SCREENER)
+      perf.finish(results, 200, { resultCount: results.length, source: 'live' })
+      return NextResponse.json(results)
+    })
   } catch (error) {
     console.error('Screener error:', error)
     const message = error instanceof Error ? error.message : 'Failed to run screener'
+    perf.finish({ error: message }, 500)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -10,6 +10,7 @@ import {
 import { getNormalizedFinancials } from '@/lib/fundamentals'
 import { buildOpportunityScoreFromContext } from '@/lib/scoring/opportunity-score'
 import { DEFAULT_UNIVERSE } from '@/lib/data/default-universe'
+import { measureStage } from '@/lib/observability/performance'
 import type { OpportunityScoreContext } from '@/lib/scoring/opportunity-score'
 import type { ScreenerFilters, ScreenerResult } from '@/lib/types'
 
@@ -156,16 +157,21 @@ async function buildScreenerRow(ticker: string, exchange: string): Promise<Scree
 }
 
 export async function rankStocks(filters: ScreenerFilters): Promise<ScreenerResult[]> {
-  const universe = await getRankingUniverse(filters, Math.max(filters.limit || 50, 80))
-  const rows = await mapWithConcurrency(universe, 5, (entry) => buildScreenerRow(entry.ticker, entry.exchange))
-
-  return rows
-    .filter((row): row is ScreenerResult => row !== null)
-    .filter((row) => passesFilters(row, filters))
-    .sort((a, b) => {
-      const scoreDiff = (b.opportunityScore || -1) - (a.opportunityScore || -1)
-      if (scoreDiff !== 0) return scoreDiff
-      return b.marketCap - a.marketCap
+  const universe = await measureStage('screener.build-universe', () =>
+    getRankingUniverse(filters, Math.max(filters.limit || 50, 80)))
+  const rows = await measureStage('screener.enrich-universe', () =>
+    mapWithConcurrency(universe, 5, (entry) => buildScreenerRow(entry.ticker, entry.exchange)), {
+      universeSize: universe.length,
     })
-    .slice(0, filters.limit || 50)
+
+  return measureStage('screener.filter-sort', async () =>
+    rows
+      .filter((row): row is ScreenerResult => row !== null)
+      .filter((row) => passesFilters(row, filters))
+      .sort((a, b) => {
+        const scoreDiff = (b.opportunityScore || -1) - (a.opportunityScore || -1)
+        if (scoreDiff !== 0) return scoreDiff
+        return b.marketCap - a.marketCap
+      })
+      .slice(0, filters.limit || 50))
 }

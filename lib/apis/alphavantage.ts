@@ -1,3 +1,5 @@
+import { measureProvider } from '@/lib/observability/performance'
+
 const BASE_URL = 'https://www.alphavantage.co/query'
 
 function apiKey(): string {
@@ -5,21 +7,23 @@ function apiKey(): string {
 }
 
 async function fetchAV(params: Record<string, string>) {
-  const url = new URL(BASE_URL)
-  url.searchParams.set('apikey', apiKey())
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v)
-  }
-  const res = await fetch(url.toString())
-  if (!res.ok) throw new Error(`Alpha Vantage error: ${res.status}`)
-  const data = await res.json()
+  return measureProvider('alphavantage', params.function || 'unknown', async () => {
+    const url = new URL(BASE_URL)
+    url.searchParams.set('apikey', apiKey())
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v)
+    }
+    const res = await fetch(url.toString())
+    if (!res.ok) throw new Error(`Alpha Vantage error: ${res.status}`)
+    const data = await res.json()
 
-  // Check for rate limit / error messages
-  if (data['Note']) throw new Error('Alpha Vantage rate limit reached (5/min)')
-  if (data['Information']) throw new Error('Alpha Vantage daily limit reached (25/day)')
-  if (data['Error Message']) throw new Error(`Alpha Vantage: ${data['Error Message']}`)
+    // Check for rate limit / error messages
+    if (data['Note']) throw new Error('Alpha Vantage rate limit reached (5/min)')
+    if (data['Information']) throw new Error('Alpha Vantage daily limit reached (25/day)')
+    if (data['Error Message']) throw new Error(`Alpha Vantage: ${data['Error Message']}`)
 
-  return data
+    return data
+  }, { params })
 }
 
 export async function getOverview(ticker: string) {

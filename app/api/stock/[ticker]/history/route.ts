@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getYahooHistory } from '@/lib/apis/yahoo'
 import { getDailyTimeSeries } from '@/lib/apis/alphavantage'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
+import { createRequestPerformanceTracker, measureStage } from '@/lib/observability/performance'
 import { normalizeOhlcvSeries } from '@/lib/time-series'
 import type { OHLCV } from '@/lib/types'
 
@@ -22,50 +23,69 @@ export async function GET(
   const range = request.nextUrl.searchParams.get('range') || '1y'
   const days = RANGE_DAYS[range] || 365
   const key = cacheKey('history', ticker)
+  const perf = createRequestPerformanceTracker('/api/stock/[ticker]/history', request, {
+    ticker,
+    range,
+    cacheKey: key,
+  })
 
   try {
-    // Try cache first (full dataset)
-    let allPrices = await getCached<OHLCV[]>(key)
-    let cacheNeedsRefresh = false
+    return await perf.run(async () => {
+      // Try cache first (full dataset)
+      let allPrices = await measureStage('cache.get', () => getCached<OHLCV[]>(key))
+      const initialCacheHit = Boolean(allPrices)
+      perf.recordCacheGet(key, Boolean(allPrices))
+      let cacheNeedsRefresh = false
 
-    if (!allPrices) {
-      // Primary: Yahoo Finance (no API key needed, generous limits)
-      allPrices = await fetchFromYahoo(ticker)
+      if (!allPrices) {
+        // Primary: Yahoo Finance (no API key needed, generous limits)
+        allPrices = await measureStage('history.yahoo', () => fetchFromYahoo(ticker))
 
-      // Last resort: Alpha Vantage (25 req/day)
-      if (!allPrices || allPrices.length === 0) {
-        allPrices = await fetchFromAlphaVantage(ticker)
+        // Last resort: Alpha Vantage (25 req/day)
+        if (!allPrices || allPrices.length === 0) {
+          allPrices = await measureStage('history.alpha-vantage-fallback', () => fetchFromAlphaVantage(ticker))
+        }
+
+        if (!allPrices || allPrices.length === 0) {
+          const payload = { error: 'No history data found' }
+          perf.finish(payload, 404)
+          return NextResponse.json(payload, { status: 404 })
+        }
+
+        cacheNeedsRefresh = true
       }
 
-      if (!allPrices || allPrices.length === 0) {
-        return NextResponse.json({ error: 'No history data found' }, { status: 404 })
+      const normalizedPrices = await measureStage('history.normalize', async () =>
+        normalizeOhlcvSeries(allPrices as OHLCV[]))
+      if (normalizedPrices.length !== allPrices.length) {
+        cacheNeedsRefresh = true
       }
 
-      cacheNeedsRefresh = true
-    }
+      if (cacheNeedsRefresh) {
+        await measureStage('cache.set', () => setCached(key, normalizedPrices, CACHE_TTL.HISTORY))
+        perf.recordCacheSet(key, CACHE_TTL.HISTORY)
+      }
 
-    const normalizedPrices = normalizeOhlcvSeries(allPrices)
-    if (normalizedPrices.length !== allPrices.length) {
-      cacheNeedsRefresh = true
-    }
+      // Filter by range
+      const cutoffDate = new Date()
+      cutoffDate.setDate(cutoffDate.getDate() - days)
+      const cutoffStr = cutoffDate.toISOString().split('T')[0]
 
-    if (cacheNeedsRefresh) {
-      await setCached(key, normalizedPrices, CACHE_TTL.HISTORY)
-    }
+      const filtered = await measureStage('history.filter-range', async () =>
+        normalizedPrices
+          .filter((p) => p.date >= cutoffStr)
+          .sort((a, b) => a.date.localeCompare(b.date)))
 
-    // Filter by range
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - days)
-    const cutoffStr = cutoffDate.toISOString().split('T')[0]
-
-    const filtered = normalizedPrices
-      .filter((p) => p.date >= cutoffStr)
-      .sort((a, b) => a.date.localeCompare(b.date))
-
-    return NextResponse.json(filtered)
+      perf.finish(filtered, 200, {
+        source: initialCacheHit ? 'cache' : 'live',
+        points: filtered.length,
+      })
+      return NextResponse.json(filtered)
+    })
   } catch (error) {
     console.error('History error:', error)
     const message = error instanceof Error ? error.message : 'Failed to fetch history'
+    perf.finish({ error: message }, 500)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

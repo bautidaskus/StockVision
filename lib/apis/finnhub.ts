@@ -1,3 +1,5 @@
+import { measureProvider } from '@/lib/observability/performance'
+
 const BASE_URL = 'https://finnhub.io/api/v1'
 
 function apiKey(): string {
@@ -5,14 +7,16 @@ function apiKey(): string {
 }
 
 async function fetchFinnhub(endpoint: string, params: Record<string, string> = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`)
-  url.searchParams.set('token', apiKey())
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v)
-  }
-  const res = await fetch(url.toString())
-  if (!res.ok) throw new Error(`Finnhub error: ${res.status}`)
-  return res.json()
+  return measureProvider('finnhub', endpoint, async () => {
+    const url = new URL(`${BASE_URL}${endpoint}`)
+    url.searchParams.set('token', apiKey())
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v)
+    }
+    const res = await fetch(url.toString())
+    if (!res.ok) throw new Error(`Finnhub error: ${res.status}`)
+    return res.json()
+  }, { params })
 }
 
 // ─── Search ────────────────────────────────────────────────────────

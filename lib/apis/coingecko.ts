@@ -1,3 +1,5 @@
+import { measureProvider } from '@/lib/observability/performance'
+
 const BASE_URL = 'https://api.coingecko.com/api/v3'
 
 function headers(): Record<string, string> {
@@ -9,13 +11,15 @@ function headers(): Record<string, string> {
 }
 
 async function fetchCG(endpoint: string, params: Record<string, string> = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`)
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v)
-  }
-  const res = await fetch(url.toString(), { headers: headers() })
-  if (!res.ok) throw new Error(`CoinGecko error: ${res.status}`)
-  return res.json()
+  return measureProvider('coingecko', endpoint, async () => {
+    const url = new URL(`${BASE_URL}${endpoint}`)
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v)
+    }
+    const res = await fetch(url.toString(), { headers: headers() })
+    if (!res.ok) throw new Error(`CoinGecko error: ${res.status}`)
+    return res.json()
+  }, { params })
 }
 
 export async function getCoinData(id: string) {

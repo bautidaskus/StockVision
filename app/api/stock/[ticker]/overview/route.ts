@@ -3,6 +3,7 @@ import { getQuoteFinnhub, getBasicFinancials } from '@/lib/apis/finnhub'
 import { getYahooQuote } from '@/lib/apis/yahoo'
 import { getOverview, getGlobalQuote } from '@/lib/apis/alphavantage'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
+import { createRequestPerformanceTracker, measureStage } from '@/lib/observability/performance'
 import type { StockOverview } from '@/lib/types'
 
 export async function GET(
@@ -11,29 +12,44 @@ export async function GET(
 ) {
   const ticker = params.ticker.toUpperCase()
   const key = cacheKey('overview', ticker)
+  const perf = createRequestPerformanceTracker('/api/stock/[ticker]/overview', _request, {
+    ticker,
+    cacheKey: key,
+  })
 
   try {
-    // Try cache first
-    const cached = await getCached<StockOverview>(key)
-    if (cached) return NextResponse.json(cached)
+    return await perf.run(async () => {
+      // Try cache first
+      const cached = await measureStage('cache.get', () => getCached<StockOverview>(key))
+      perf.recordCacheGet(key, Boolean(cached))
+      if (cached) {
+        perf.finish(cached, 200, { source: 'cache' })
+        return NextResponse.json(cached)
+      }
 
-    // Try Finnhub + Yahoo first
-    let result = await fetchFromFinnhubYahoo(ticker)
+      // Try Finnhub + Yahoo first
+      let result = await measureStage('overview.finnhub-yahoo', () => fetchFromFinnhubYahoo(ticker))
 
-    // Fallback to Alpha Vantage if both fail
-    if (!result) {
-      result = await fetchFromAlphaVantage(ticker)
-    }
+      // Fallback to Alpha Vantage if both fail
+      if (!result) {
+        result = await measureStage('overview.alpha-vantage-fallback', () => fetchFromAlphaVantage(ticker))
+      }
 
-    if (!result) {
-      return NextResponse.json({ error: 'Ticker not found' }, { status: 404 })
-    }
+      if (!result) {
+        const payload = { error: 'Ticker not found' }
+        perf.finish(payload, 404)
+        return NextResponse.json(payload, { status: 404 })
+      }
 
-    await setCached(key, result, CACHE_TTL.OVERVIEW)
-    return NextResponse.json(result)
+      await measureStage('cache.set', () => setCached(key, result, CACHE_TTL.OVERVIEW))
+      perf.recordCacheSet(key, CACHE_TTL.OVERVIEW)
+      perf.finish(result, 200, { source: 'live' })
+      return NextResponse.json(result)
+    })
   } catch (error) {
     console.error('Overview error:', error)
     const message = error instanceof Error ? error.message : 'Failed to fetch overview'
+    perf.finish({ error: message }, 500)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

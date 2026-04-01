@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import YahooFinance from 'yahoo-finance2'
+import { measureProvider } from '@/lib/observability/performance'
 import type { AnalystRecommendation, FinancialStatement, NewsItem } from '@/lib/types'
 
 const yf = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey', 'ripHistorical'] })
@@ -32,7 +33,8 @@ function pickNumber(...values: unknown[]): number | null {
 // ─── Search ────────────────────────────────────────────────────────
 
 export async function searchYahoo(query: string, limit = 8) {
-  const result: any = await yf.search(query, { newsCount: 0 })
+  const result: any = await measureProvider('yahoo', 'search', () =>
+    yf.search(query, { newsCount: 0 }), { query, limit })
   return (result.quotes || [])
     .filter((q: any) => q.quoteType === 'EQUITY' || q.quoteType === 'ETF')
     .slice(0, limit)
@@ -47,9 +49,10 @@ export async function searchYahoo(query: string, limit = 8) {
 // ─── Quote + Profile (combined via quoteSummary) ───────────────────
 
 export async function getYahooQuote(ticker: string) {
-  const result: any = await yf.quoteSummary(ticker, {
-    modules: ['price', 'summaryProfile', 'summaryDetail', 'defaultKeyStatistics'],
-  })
+  const result: any = await measureProvider('yahoo', 'quoteSummary.quote', () =>
+    yf.quoteSummary(ticker, {
+      modules: ['price', 'summaryProfile', 'summaryDetail', 'defaultKeyStatistics'],
+    }), { ticker })
 
   const price = result.price || {}
   const profile = result.summaryProfile || {}
@@ -98,11 +101,12 @@ export async function getYahooHistory(ticker: string, years = 5) {
   const from = new Date()
   from.setFullYear(from.getFullYear() - years)
 
-  const result: any = await yf.chart(ticker, {
-    period1: from,
-    period2: now,
-    interval: '1d',
-  })
+  const result: any = await measureProvider('yahoo', 'chart.history', () =>
+    yf.chart(ticker, {
+      period1: from,
+      period2: now,
+      interval: '1d',
+    }), { ticker, years })
 
   return (result?.quotes || [])
     .map((d: any) => ({
@@ -134,9 +138,10 @@ export async function getYahooHistory(ticker: string, years = 5) {
 // ─── Earnings ───────────────────────────────────────────────────────
 
 export async function getYahooEarnings(ticker: string) {
-  const result: any = await yf.quoteSummary(ticker, {
-    modules: ['calendarEvents', 'earnings', 'earningsHistory', 'earningsTrend'],
-  })
+  const result: any = await measureProvider('yahoo', 'quoteSummary.earnings', () =>
+    yf.quoteSummary(ticker, {
+      modules: ['calendarEvents', 'earnings', 'earningsHistory', 'earningsTrend'],
+    }), { ticker })
 
   // Next earnings date
   const calEvents = result.calendarEvents || {}
@@ -181,9 +186,10 @@ export async function getYahooEarnings(ticker: string) {
 // ─── Insider Transactions ───────────────────────────────────────────
 
 export async function getYahooInsiders(ticker: string) {
-  const result: any = await yf.quoteSummary(ticker, {
-    modules: ['insiderTransactions'],
-  })
+  const result: any = await measureProvider('yahoo', 'quoteSummary.insiders', () =>
+    yf.quoteSummary(ticker, {
+      modules: ['insiderTransactions'],
+    }), { ticker })
 
   const rawTransactions: any[] = result.insiderTransactions?.transactions || []
 
@@ -231,12 +237,13 @@ export async function getYahooFinancials(ticker: string, period: 'quarterly' | '
   const from = new Date()
   from.setFullYear(from.getFullYear() - (period === 'quarterly' ? 5 : 10))
 
-  const result: any[] = await yf.fundamentalsTimeSeries(ticker, {
-    period1: from.toISOString().split('T')[0],
-    period2: now.toISOString().split('T')[0],
-    type: period === 'quarterly' ? 'quarterly' : 'annual',
-    module: 'all',
-  })
+  const result: any[] = await measureProvider('yahoo', 'fundamentalsTimeSeries', () =>
+    yf.fundamentalsTimeSeries(ticker, {
+      period1: from.toISOString().split('T')[0],
+      period2: now.toISOString().split('T')[0],
+      type: period === 'quarterly' ? 'quarterly' : 'annual',
+      module: 'all',
+    }), { ticker, period, limit })
 
   const statements: FinancialStatement[] = (result || [])
     .map((entry: any) => {
@@ -312,9 +319,10 @@ export async function getYahooFinancials(ticker: string, period: 'quarterly' | '
 }
 
 export async function getYahooRecommendationTrend(ticker: string): Promise<AnalystRecommendation[]> {
-  const result: any = await yf.quoteSummary(ticker, {
-    modules: ['recommendationTrend'],
-  })
+  const result: any = await measureProvider('yahoo', 'quoteSummary.recommendations', () =>
+    yf.quoteSummary(ticker, {
+      modules: ['recommendationTrend'],
+    }), { ticker })
 
   const trend: any[] = result.recommendationTrend?.trend || []
 
@@ -329,10 +337,11 @@ export async function getYahooRecommendationTrend(ticker: string): Promise<Analy
 }
 
 export async function getYahooNews(query: string, limit = 10): Promise<NewsItem[]> {
-  const result: any = await yf.search(query, {
-    quotesCount: 0,
-    newsCount: limit,
-  })
+  const result: any = await measureProvider('yahoo', 'search.news', () =>
+    yf.search(query, {
+      quotesCount: 0,
+      newsCount: limit,
+    }), { query, limit })
 
   return (result.news || []).slice(0, limit).map((item: any) => ({
     headline: String(item.title || ''),
@@ -347,7 +356,15 @@ export async function getYahooNews(query: string, limit = 10): Promise<NewsItem[
 export async function getYahooScreenerSymbols(scrIds: string[], count = 25): Promise<string[]> {
   const results = await Promise.all(
     scrIds.map((scrId) =>
-      yf.screener({ scrIds: scrId, count }).catch(() => null)
+      measureProvider<{ quotes?: Array<{ symbol?: string }> }>(
+        'yahoo',
+        'screener',
+        () => yf.screener({ scrIds: scrId, count }) as Promise<{ quotes?: Array<{ symbol?: string }> }>,
+        {
+          scrId,
+          count,
+        },
+      ).catch(() => null)
     )
   )
 

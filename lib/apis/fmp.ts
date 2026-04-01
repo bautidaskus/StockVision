@@ -1,3 +1,5 @@
+import { measureProvider } from '@/lib/observability/performance'
+
 const BASE_URL = 'https://financialmodelingprep.com/api/v3'
 
 function apiKey(): string {
@@ -5,19 +7,21 @@ function apiKey(): string {
 }
 
 async function fetchFMP(endpoint: string, params: Record<string, string> = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`)
-  url.searchParams.set('apikey', apiKey())
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v)
-  }
-  const res = await fetch(url.toString())
-  if (!res.ok) throw new Error(`FMP error: ${res.status}`)
-  const data = await res.json()
-  // FMP returns { "Error Message": "..." } on some errors
-  if (data && typeof data === 'object' && !Array.isArray(data) && data['Error Message']) {
-    throw new Error(`FMP: ${data['Error Message']}`)
-  }
-  return data
+  return measureProvider('fmp', endpoint, async () => {
+    const url = new URL(`${BASE_URL}${endpoint}`)
+    url.searchParams.set('apikey', apiKey())
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v)
+    }
+    const res = await fetch(url.toString())
+    if (!res.ok) throw new Error(`FMP error: ${res.status}`)
+    const data = await res.json()
+    // FMP returns { "Error Message": "..." } on some errors
+    if (data && typeof data === 'object' && !Array.isArray(data) && data['Error Message']) {
+      throw new Error(`FMP: ${data['Error Message']}`)
+    }
+    return data
+  }, { params })
 }
 
 // ─── Quote & Profile (replaces Alpha Vantage for overview) ─────────
