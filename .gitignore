@@ -45,3 +45,6 @@ next-env.d.ts
 
 # private docs (no subir a GitHub)
 docs/_private/
+
+# local tooling state
+.claude/
