@@ -127,3 +127,49 @@ La evidencia confirma el orden del plan original:
 2. La optimización correcta es reducir trabajo por request, no micro-optimizar sorting ni render.
 3. `indicators` debe pasar a lógica compartida en `lib/` en una fase posterior.
 4. La instrumentación quedó detrás de `SV_PERF_DEBUG=1` o `__perf=1`, sin logs ruidosos por defecto.
+
+## Phase 1: Screener After
+
+## Cambios aplicados
+
+- backend dividido en:
+  - fast path preferido con FMP
+  - fast path equivalente con Yahoo batch si FMP falla por permisos
+  - fallback legacy de ranking enriquecido como último recurso
+- score limitado a `scoreWindow=10`
+- resultados base y resultados enriquecidos cacheados por separado
+- cache del universo Yahoo fast para no reconstruirlo en cada cambio de filtro
+- UI con `Aplicar filtros`, `draftFilters` y preservación de resultados previos
+
+## Metricas observadas despues de Fase 1
+
+### Screener base
+
+- Ruta: `/api/screener?limit=100`
+- Respuesta visible base con cache exacta caliente: `177-425 ms`
+- Reconsulta con filtros distintos y universo caliente:
+  - `/api/screener?limit=100&exchange=NASDAQ&betaMax=1`
+  - `822 ms`
+
+### Screener enriquecido
+
+- Ruta: `/api/screener?limit=100&scoreWindow=10`
+- Respuesta enriquecida con cache exacta caliente: `164-207 ms`
+- Shape observado:
+  - base: `100` filas con `scoreStatus = not-requested`
+  - enriquecido: `10` filas con `scoreStatus = ready`, `90` con `scoreStatus = not-requested`
+
+## Before / After
+
+| Escenario | Antes | Despues |
+| --- | ---: | ---: |
+| Screener default warm | 147 ms | 177-425 ms |
+| Reconsulta con filtros calientes | no medido sin score parcial; el backend seguia enriqueciendo todo | 822 ms |
+| Requests externas por ejecucion del screener | 706 en baseline instrumentada | 8 en el fast path equivalente cold con universo sin cache; luego 0 al pegar exact same cache |
+| Trabajo de score | universo completo | solo `10` filas |
+
+## Riesgos remanentes
+
+- La credencial actual de FMP devuelve `402`, por eso en este entorno manda el fast path equivalente y no el preferido.
+- Los filtros `sector`, `roeMin`, `netMarginMin` y `debtToEquityMax` siguen necesitando el fallback más pesado para preservar exactitud.
+- La primera carga completamente fria del screener equivalente sigue siendo más lenta de lo deseado porque arma el universo inicial antes de cachearlo.

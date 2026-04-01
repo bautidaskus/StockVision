@@ -184,9 +184,14 @@ Eso ultimo es relevante: el middleware excluye `/api/*`, asi que la proteccion e
 ### Screener
 
 `/api/screener`
-- usa FMP `stock-screener`
-- cachea por filtros ordenados
-- hoy solo consume un subconjunto de filtros expuestos en `ScreenerFilters`
+- usa un fast path por fases:
+  - preferido: FMP screener cuando la credencial lo permite
+  - equivalente: universo Yahoo + batch quote para filtros compatibles
+  - fallback final: ranking enriquecido legacy
+- cachea por filtros ordenados y separa la variante base de la variante con `scoreWindow`
+- el score ya no se calcula para todo el universo por defecto
+- la UI mantiene `draftFilters` y `appliedFilters`; no consulta por cada keypress
+- el enriquecimiento del score se limita a una ventana chica y llega despues de la tabla base
 
 ### IA
 
@@ -205,8 +210,15 @@ Estas son importantes para no confiar ciegamente en la documentacion:
 1. `lib/apis/alphavantage.ts` sigue existiendo, pero ya no es la fuente primaria para overview/history/indicators.
 2. `docs/API-ROUTES.md` y `docs/ARCHITECTURE.md` describen una app mas centrada en Alpha Vantage y FMP para varias rutas. Eso ya no refleja el flujo principal.
 3. `docs/EXTENDING.md` dice que no hay tests, pero si los hay.
-4. `lib/types.ts` define filtros de screener mas amplios que los que hoy procesa `app/api/screener/route.ts` y `lib/apis/fmp.ts`.
-5. `lib/apis/fmp.ts` mapea `week52High` usando `lastAnnualDividend` y deja `week52Low` en `0`, lo que sugiere deuda tecnica o mapping incorrecto del screener.
+4. Algunos filtros del screener solo pueden resolverse en el fast path equivalente o en el fallback legacy:
+   - `sector`
+   - `roeMin`
+   - `netMarginMin`
+   - `debtToEquityMax`
+5. El score del screener ahora es parcial por diseño:
+   - base: `scoreStatus = not-requested`
+   - enriquecido: `scoreStatus = ready`
+   - fallo parcial: `scoreStatus = unavailable`
 6. `CLAUDE.md` es mejor que los docs viejos, pero tambien mezcla descripcion vigente con supuestos anteriores.
 
 ## Cache y TTLs
@@ -359,8 +371,8 @@ Notas:
 
 1. Documentacion interna parcialmente desalineada con el codigo.
 2. `Alpha Vantage` sigue presente como fallback, pero algunos textos del proyecto lo describen como proveedor central.
-3. El screener tiene tipos mas ricos que la implementacion real.
-4. El mapping de `ScreenerResult` desde FMP parece incompleto o incorrecto en algunos campos.
+3. El screener ya expone metadatos de procedencia (`primaryDataSource`, `scoreSource`, `scoreStatus`), pero los consumidores viejos pueden ignorarlos.
+4. El fast path preferido de FMP depende del plan de la credencial; si devuelve `402/403`, entra el fast path equivalente o el fallback legacy.
 5. La ruta de analisis IA cachea bajo `cacheKey('analysis', ticker)` sin incluir `type`; si existiera el mismo identificador para stock y crypto, podria haber colision conceptual.
 6. La UI protegida por password no protege las API routes.
 7. Hay mucha logica importante acoplada a fetches internos (`/api/...`) en vez de abstraerse mas; esto es simple pero agrega acoplamiento entre rutas.
