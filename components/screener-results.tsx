@@ -34,10 +34,16 @@ const COLUMNS: Column[] = [
 interface ScreenerResultsProps {
   results: ScreenerResult[] | undefined
   isLoading: boolean
+  isRefreshing?: boolean
   error: Error | null
 }
 
-export function ScreenerResults({ results, isLoading, error }: ScreenerResultsProps) {
+export function ScreenerResults({
+  results,
+  isLoading,
+  isRefreshing = false,
+  error,
+}: ScreenerResultsProps) {
   const router = useRouter()
   const [sortKey, setSortKey] = useState<SortKey>('opportunityScore')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -56,6 +62,7 @@ export function ScreenerResults({ results, isLoading, error }: ScreenerResultsPr
         const av = a[sortKey]
         const bv = b[sortKey]
         // Nulls siempre al final
+        if (av == null && bv == null) return 0
         if (av == null) return 1
         if (bv == null) return -1
         if (typeof av === 'string') {
@@ -100,9 +107,14 @@ export function ScreenerResults({ results, isLoading, error }: ScreenerResultsPr
   return (
     <div className="space-y-2">
       {/* Contador */}
-      <p className="text-sm text-muted-foreground">
-        {results.length} resultado{results.length !== 1 ? 's' : ''} encontrado{results.length !== 1 ? 's' : ''}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {results.length} resultado{results.length !== 1 ? 's' : ''} encontrado{results.length !== 1 ? 's' : ''}
+        </p>
+        {isRefreshing && (
+          <p className="text-xs text-muted-foreground">Actualizando sin ocultar resultados previos...</p>
+        )}
+      </div>
 
       {/* Tabla */}
       <Card className="bg-card border-border overflow-hidden">
@@ -148,16 +160,20 @@ export function ScreenerResults({ results, isLoading, error }: ScreenerResultsPr
                 >
                   <td className="py-3 px-4 text-right">
                     <div className="font-mono-numbers font-semibold">
-                      {item.opportunityScore ?? <span className="text-muted-foreground">N/A</span>}
+                      {item.opportunityScore ?? <span className="text-muted-foreground">—</span>}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      {item.opportunityRating || '—'}
+                      {item.scoreStatus === 'ready'
+                        ? `${item.opportunityRating || 'Score'} · Yahoo`
+                        : item.scoreStatus === 'unavailable'
+                          ? 'Score no disponible'
+                          : 'Base FMP'}
                     </div>
                   </td>
                   <td className="py-3 px-4">
                     <div className="font-mono-numbers font-semibold">{item.ticker}</div>
                     <div className="text-xs text-muted-foreground truncate max-w-[160px]">{item.name}</div>
-                    {item.reasons && item.reasons.length > 0 && (
+                    {item.scoreStatus === 'ready' && item.reasons && item.reasons.length > 0 && (
                       <div className="text-[11px] text-muted-foreground truncate max-w-[220px] mt-0.5">
                         {item.reasons[0]}
                       </div>

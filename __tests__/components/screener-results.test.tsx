@@ -29,6 +29,9 @@ const mockResults: ScreenerResult[] = [
     momentumScore: 76,
     eventsScore: 68,
     reasons: ['P/E: 28.5'],
+    primaryDataSource: 'fmp-screener',
+    scoreSource: 'yahoo-enrichment',
+    scoreStatus: 'ready',
   },
 ]
 
@@ -48,7 +51,7 @@ describe('ScreenerResults', () => {
     render(<ScreenerResults results={mockResults} isLoading={false} error={null} />)
     expect(screen.getByText('AAPL')).toBeDefined()
     expect(screen.getByText('1 resultado encontrado')).toBeDefined()
-    expect(screen.getByText('Muy atractiva')).toBeDefined()
+    expect(screen.getByText('Muy atractiva · Yahoo')).toBeDefined()
   })
 
   it('muestra mensaje vacío cuando no hay resultados', () => {

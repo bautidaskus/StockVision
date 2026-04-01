@@ -27,10 +27,21 @@ interface ScreenerFiltersProps {
   filters: ScreenerFilters
   onChange: (filters: ScreenerFilters) => void
   onReset: () => void
+  onApply: () => void
+  isDirty: boolean
+  isApplyDisabled: boolean
   isLoading: boolean
 }
 
-export function ScreenerFilters({ filters, onChange, onReset, isLoading }: ScreenerFiltersProps) {
+export function ScreenerFilters({
+  filters,
+  onChange,
+  onReset,
+  onApply,
+  isDirty,
+  isApplyDisabled,
+  isLoading,
+}: ScreenerFiltersProps) {
   // Helper para actualizar un campo específico
   function set<K extends keyof ScreenerFilters>(key: K, value: ScreenerFilters[K]) {
     onChange({ ...filters, [key]: value })
@@ -203,9 +214,23 @@ export function ScreenerFilters({ filters, onChange, onReset, isLoading }: Scree
       {isLoading && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
-          Buscando...
+          Actualizando resultados...
         </div>
       )}
+
+      {isDirty && (
+        <p className="text-xs text-muted-foreground">
+          Hay cambios pendientes. Aplicalos para actualizar la tabla.
+        </p>
+      )}
+
+      <Button
+        onClick={onApply}
+        disabled={!isDirty || isApplyDisabled}
+        className="w-full"
+      >
+        Aplicar filtros
+      </Button>
     </Card>
   )
 }
