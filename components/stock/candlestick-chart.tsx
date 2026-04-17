@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { FadeIn } from '@/components/motion/fade-in'
 import { normalizeOhlcvSeries, normalizeTechnicalIndicators } from '@/lib/time-series'
 import type { OHLCV, TechnicalIndicators } from '@/lib/types'
+import type { ISeriesApi } from 'lightweight-charts'
 
 const TIMEFRAMES = ['1M', '3M', '6M', '1Y', '3Y', '5Y'] as const
 const SMA_COLORS = {
@@ -14,15 +15,18 @@ const SMA_COLORS = {
   sma50: '#6366f1',
   sma200: '#ec4899',
 } as const
+type SmaKey = keyof typeof SMA_COLORS
 
 export function CandlestickChart({ ticker }: { ticker: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rsiContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ReturnType<typeof import('lightweight-charts').createChart> | null>(null)
   const rsiChartRef = useRef<ReturnType<typeof import('lightweight-charts').createChart> | null>(null)
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
+  const smaSeriesRef = useRef<Partial<Record<SmaKey, ISeriesApi<'Line'>>>>({})
   const [timeframe, setTimeframe] = useState<string>('1Y')
   const [showVolume, setShowVolume] = useState(true)
-  const [showSma, setShowSma] = useState<Record<string, boolean>>({ sma20: false, sma50: false, sma200: false })
+  const [showSma, setShowSma] = useState<Record<SmaKey, boolean>>({ sma20: false, sma50: false, sma200: false })
   const [chartError, setChartError] = useState<string | null>(null)
 
   const range = timeframe.toLowerCase()
@@ -45,13 +49,10 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
     },
   })
 
-  // ── Main candlestick chart ─────────────────────────────────────────
+  // ── Effect A: create chart + candles. Rebuilds only when the price data changes.
   useEffect(() => {
     const currentHistory = history ? normalizeOhlcvSeries(history) : []
-    const currentIndicators = indicators ? normalizeTechnicalIndicators(indicators) : null
-
     setChartError(null)
-
     if (!containerRef.current || currentHistory.length === 0) return
 
     let disposed = false
@@ -59,22 +60,20 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
 
     async function initChart() {
       try {
-        const { createChart, CandlestickSeries, HistogramSeries, LineSeries } = await import('lightweight-charts')
+        const { createChart, CandlestickSeries } = await import('lightweight-charts')
         if (disposed || !containerRef.current) return
 
         if (chartRef.current) {
           chartRef.current.remove()
           chartRef.current = null
         }
+        volumeSeriesRef.current = null
+        smaSeriesRef.current = {}
 
         const chart = createChart(containerRef.current, {
           width: containerRef.current.clientWidth,
           height: 400,
-          layout: {
-            background: { color: '#1a1a1f' },
-            textColor: '#71717a',
-            fontSize: 12,
-          },
+          layout: { background: { color: '#1a1a1f' }, textColor: '#71717a', fontSize: 12 },
           grid: {
             vertLines: { color: '#2a2a3520' },
             horzLines: { color: '#2a2a3520' },
@@ -83,10 +82,8 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           rightPriceScale: { borderColor: '#2a2a35' },
           timeScale: { borderColor: '#2a2a35', timeVisible: false },
         })
-
         chartRef.current = chart
 
-        // Candlesticks
         const candleSeries = chart.addSeries(CandlestickSeries, {
           upColor: '#00c896',
           downColor: '#ff4757',
@@ -95,7 +92,6 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           wickDownColor: '#ff4757',
           wickUpColor: '#00c896',
         })
-
         candleSeries.setData(
           currentHistory.map((d) => ({
             time: d.date,
@@ -106,59 +102,17 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           }))
         )
 
-        // Volume
-        if (showVolume) {
-          const volumeSeries = chart.addSeries(HistogramSeries, {
-            priceFormat: { type: 'volume' },
-            priceScaleId: 'volume',
-          })
-          chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
-          volumeSeries.setData(
-            currentHistory.map((d) => ({
-              time: d.date,
-              value: d.volume,
-              color: d.close >= d.open ? '#00c89633' : '#ff475733',
-            }))
-          )
-        }
-
-        // SMA overlays
-        if (currentIndicators) {
-          const dateSet = new Set(currentHistory.map((d) => d.date))
-          Object.entries(showSma).forEach(([key, visible]) => {
-            if (!visible) return
-            const smaKey = key as keyof typeof SMA_COLORS
-            const smaData = currentIndicators[smaKey as keyof TechnicalIndicators] as Array<{ date: string; value: number }> | undefined
-            if (!smaData) return
-            const series = chart.addSeries(LineSeries, {
-              color: SMA_COLORS[smaKey],
-              lineWidth: 1,
-              crosshairMarkerVisible: false,
-              priceLineVisible: false,
-              lastValueVisible: false,
-            })
-            series.setData(
-              smaData
-                .filter((d) => dateSet.has(d.date))
-                .map((d) => ({ time: d.date, value: d.value }))
-            )
-          })
-        }
-
         chart.timeScale().fitContent()
 
         resizeHandler = () => {
-          if (containerRef.current && chart) {
-            chart.applyOptions({ width: containerRef.current.clientWidth })
+          if (containerRef.current && chartRef.current) {
+            chartRef.current.applyOptions({ width: containerRef.current.clientWidth })
           }
         }
-      }
-      catch (error) {
+        window.addEventListener('resize', resizeHandler)
+      } catch (error) {
         console.error('Candlestick chart error:', error)
         if (!disposed) setChartError('No se pudo renderizar el gráfico principal.')
-      }
-      if (resizeHandler) {
-        window.addEventListener('resize', resizeHandler)
       }
     }
 
@@ -171,8 +125,87 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         chartRef.current.remove()
         chartRef.current = null
       }
+      volumeSeriesRef.current = null
+      smaSeriesRef.current = {}
     }
-  }, [history, indicators, showVolume, showSma])
+  }, [history])
+
+  // ── Effect B: toggle volume series without rebuilding the chart.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const currentHistory = history ? normalizeOhlcvSeries(history) : []
+    if (currentHistory.length === 0) return
+
+    let cancelled = false
+    ;(async () => {
+      const { HistogramSeries } = await import('lightweight-charts')
+      if (cancelled || !chartRef.current) return
+
+      if (showVolume && !volumeSeriesRef.current) {
+        const series = chartRef.current.addSeries(HistogramSeries, {
+          priceFormat: { type: 'volume' },
+          priceScaleId: 'volume',
+        })
+        chartRef.current.priceScale('volume').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
+        series.setData(
+          currentHistory.map((d) => ({
+            time: d.date,
+            value: d.volume,
+            color: d.close >= d.open ? '#00c89633' : '#ff475733',
+          }))
+        )
+        volumeSeriesRef.current = series
+      } else if (!showVolume && volumeSeriesRef.current) {
+        chartRef.current.removeSeries(volumeSeriesRef.current)
+        volumeSeriesRef.current = null
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [history, showVolume])
+
+  // ── Effect C: add/remove SMA overlays without rebuilding the chart.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !indicators) return
+    const currentHistory = history ? normalizeOhlcvSeries(history) : []
+    if (currentHistory.length === 0) return
+    const currentIndicators = normalizeTechnicalIndicators(indicators)
+    const dateSet = new Set(currentHistory.map((d) => d.date))
+
+    let cancelled = false
+    ;(async () => {
+      const { LineSeries } = await import('lightweight-charts')
+      if (cancelled || !chartRef.current) return
+
+      for (const key of Object.keys(SMA_COLORS) as SmaKey[]) {
+        const shouldShow = showSma[key]
+        const existing = smaSeriesRef.current[key]
+
+        if (shouldShow && !existing) {
+          const smaData = currentIndicators[key] as Array<{ date: string; value: number }> | undefined
+          if (!smaData) continue
+          const series = chartRef.current.addSeries(LineSeries, {
+            color: SMA_COLORS[key],
+            lineWidth: 1,
+            crosshairMarkerVisible: false,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          })
+          series.setData(
+            smaData.filter((d) => dateSet.has(d.date)).map((d) => ({ time: d.date, value: d.value }))
+          )
+          smaSeriesRef.current[key] = series
+        } else if (!shouldShow && existing) {
+          chartRef.current.removeSeries(existing)
+          delete smaSeriesRef.current[key]
+        }
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [history, indicators, showSma])
 
   // ── RSI + MACD sub-chart ───────────────────────────────────────────
   useEffect(() => {
@@ -373,7 +406,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           Vol
         </button>
 
-        {Object.entries(SMA_COLORS).map(([key, color]) => (
+        {(Object.entries(SMA_COLORS) as [SmaKey, string][]).map(([key, color]) => (
           <button
             key={key}
             onClick={() => setShowSma((prev) => ({ ...prev, [key]: !prev[key] }))}
