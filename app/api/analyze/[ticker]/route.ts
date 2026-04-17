@@ -1,6 +1,13 @@
 import { NextRequest } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { getCached, setCached, cacheKey, CACHE_TTL } from '@/lib/cache/redis'
+import {
+  getOverviewCached,
+  getHistoryCached,
+  getIndicatorsCached,
+  getFinancialsCached,
+  getNewsCached,
+} from '@/lib/services/stock-service'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -25,30 +32,30 @@ export async function GET(
       }
     }
 
-    // Gather data from our own API routes
-    const baseUrl = request.nextUrl.origin
-    const dataPromises = type === 'crypto'
-      ? [
-          fetchInternalJson(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/overview`),
-          fetchInternalJson(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/history?range=3m`),
-        ]
-      : [
-          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/overview`),
-          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/history?range=3m`),
-          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/indicators`),
-          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/financials?period=quarterly&limit=4`),
-          fetchInternalJson(`${baseUrl}/api/stock/${ticker}/news`),
-        ]
-
-    const results = await Promise.all(dataPromises)
-
     let prompt: string
     if (type === 'crypto') {
-      const [overview, history] = results
+      const baseUrl = request.nextUrl.origin
+      const [overview, history] = await Promise.all([
+        fetchInternalJson(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/overview`),
+        fetchInternalJson(`${baseUrl}/api/crypto/${ticker.toLowerCase()}/history?range=3m`),
+      ])
       prompt = buildCryptoPrompt(ticker, overview, history)
     } else {
-      const [overview, history, indicators, financials, news] = results
-      prompt = buildStockPrompt(ticker, overview, history, indicators, financials, news)
+      const [overview, history, indicators, financials, news] = await Promise.all([
+        getOverviewCached(ticker),
+        getHistoryCached(ticker, '3m'),
+        getIndicatorsCached(ticker),
+        getFinancialsCached(ticker, 'quarterly', 4),
+        getNewsCached(ticker),
+      ])
+      prompt = buildStockPrompt(
+        ticker,
+        overview as unknown as Record<string, unknown> | null,
+        history as unknown as Array<Record<string, number>> | null,
+        indicators as unknown as Record<string, unknown> | null,
+        financials as unknown as Record<string, unknown> | null,
+        news as unknown as Array<Record<string, unknown>> | null,
+      )
     }
 
     // Call Gemini with streaming

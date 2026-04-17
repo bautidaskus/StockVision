@@ -1,0 +1,80 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "SV StockVision" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e5]: SV
+        - generic [ref=e6]: StockVision
+      - link "Screener" [ref=e8] [cursor=pointer]:
+        - /url: /screener
+  - main [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - img [ref=e13]
+          - heading "StockVision" [level=1] [ref=e16]
+        - paragraph [ref=e17]: Análisis de inversiones con inteligencia artificial. Buscá cualquier acción, ETF o criptomoneda.
+        - generic [ref=e20]:
+          - img [ref=e21]
+          - 'textbox "Buscar por ticker o nombre (ej: AAPL, Bitcoin)..." [ref=e24]'
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - img [ref=e27]
+          - heading "Watchlist" [level=2] [ref=e30]
+          - generic [ref=e31]: (3)
+        - generic [ref=e79]:
+          - button [ref=e82] [cursor=pointer]:
+            - img [ref=e83]
+          - button [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button [ref=e102] [cursor=pointer]:
+            - img [ref=e103]
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - img [ref=e40]
+          - heading "Portafolio" [level=2] [ref=e43]
+          - generic [ref=e44]: (0)
+          - button "Agregar" [ref=e45] [cursor=pointer]:
+            - img
+            - text: Agregar
+        - generic [ref=e46]:
+          - img [ref=e47]
+          - paragraph [ref=e50]: Tu portafolio está vacío.
+          - paragraph [ref=e51]: Agregá posiciones para trackear tu P&L.
+      - generic [ref=e52]:
+        - heading "Acceso Rápido" [level=2] [ref=e53]
+        - generic [ref=e54]:
+          - link "AAPL Apple" [ref=e55] [cursor=pointer]:
+            - /url: /stock/AAPL
+            - generic [ref=e56]: AAPL
+            - generic [ref=e57]: Apple
+          - link "MSFT Microsoft" [ref=e58] [cursor=pointer]:
+            - /url: /stock/MSFT
+            - generic [ref=e59]: MSFT
+            - generic [ref=e60]: Microsoft
+          - link "GOOGL Alphabet" [ref=e61] [cursor=pointer]:
+            - /url: /stock/GOOGL
+            - generic [ref=e62]: GOOGL
+            - generic [ref=e63]: Alphabet
+          - link "AMZN Amazon" [ref=e64] [cursor=pointer]:
+            - /url: /stock/AMZN
+            - generic [ref=e65]: AMZN
+            - generic [ref=e66]: Amazon
+          - link "TSLA Tesla" [ref=e67] [cursor=pointer]:
+            - /url: /stock/TSLA
+            - generic [ref=e68]: TSLA
+            - generic [ref=e69]: Tesla
+          - link "NVDA NVIDIA" [ref=e70] [cursor=pointer]:
+            - /url: /stock/NVDA
+            - generic [ref=e71]: NVDA
+            - generic [ref=e72]: NVIDIA
+          - link "BITCOIN Bitcoin" [ref=e73] [cursor=pointer]:
+            - /url: /crypto/bitcoin
+            - generic [ref=e74]: BITCOIN
+            - generic [ref=e75]: Bitcoin
+          - link "ETHEREUM Ethereum" [ref=e76] [cursor=pointer]:
+            - /url: /crypto/ethereum
+            - generic [ref=e77]: ETHEREUM
+            - generic [ref=e78]: Ethereum
+  - region "Notifications alt+T"
+  - alert [ref=e110]

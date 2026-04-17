@@ -1,0 +1,101 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "SV StockVision" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e5]: SV
+        - generic [ref=e6]: StockVision
+      - link "Screener" [ref=e8] [cursor=pointer]:
+        - /url: /screener
+  - main [ref=e9]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - img [ref=e26]
+          - heading "StockVision" [level=1] [ref=e29]
+        - paragraph [ref=e30]: Análisis de inversiones con inteligencia artificial. Buscá cualquier acción, ETF o criptomoneda.
+        - generic [ref=e33]:
+          - img [ref=e34]
+          - 'textbox "Buscar por ticker o nombre (ej: AAPL, Bitcoin)..." [ref=e37]'
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - img [ref=e40]
+          - heading "Watchlist" [level=2] [ref=e43]
+          - generic [ref=e44]: (3)
+        - generic [ref=e45]:
+          - generic [ref=e47] [cursor=pointer]:
+            - button [ref=e48]:
+              - img [ref=e49]
+            - generic [ref=e53]:
+              - generic [ref=e54]: MELI
+              - generic [ref=e55]: MercadoLibre, Inc.
+            - generic [ref=e56]: $1,822.13
+            - generic [ref=e57]: "-2.67%"
+            - img [ref=e59]
+          - generic [ref=e62] [cursor=pointer]:
+            - button [ref=e63]:
+              - img [ref=e64]
+            - generic [ref=e68]:
+              - generic [ref=e69]: MSFT
+              - generic [ref=e70]: Microsoft Corporation
+            - generic [ref=e71]: $420.26
+            - generic [ref=e72]: +2.20%
+            - img [ref=e74]
+          - generic [ref=e77] [cursor=pointer]:
+            - button [ref=e78]:
+              - img [ref=e79]
+            - generic [ref=e83]:
+              - generic [ref=e84]: NU
+              - generic [ref=e85]: Nu Holdings Ltd.
+            - generic [ref=e86]: $15.43
+            - generic [ref=e87]: +0.59%
+            - img [ref=e89]
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - img [ref=e93]
+          - heading "Portafolio" [level=2] [ref=e96]
+          - generic [ref=e97]: (0)
+          - button "Agregar" [ref=e98] [cursor=pointer]:
+            - img
+            - text: Agregar
+        - generic [ref=e99]:
+          - img [ref=e100]
+          - paragraph [ref=e103]: Tu portafolio está vacío.
+          - paragraph [ref=e104]: Agregá posiciones para trackear tu P&L.
+      - generic [ref=e105]:
+        - heading "Acceso Rápido" [level=2] [ref=e106]
+        - generic [ref=e107]:
+          - link "AAPL Apple" [ref=e108] [cursor=pointer]:
+            - /url: /stock/AAPL
+            - generic [ref=e109]: AAPL
+            - generic [ref=e110]: Apple
+          - link "MSFT Microsoft" [ref=e111] [cursor=pointer]:
+            - /url: /stock/MSFT
+            - generic [ref=e112]: MSFT
+            - generic [ref=e113]: Microsoft
+          - link "GOOGL Alphabet" [ref=e114] [cursor=pointer]:
+            - /url: /stock/GOOGL
+            - generic [ref=e115]: GOOGL
+            - generic [ref=e116]: Alphabet
+          - link "AMZN Amazon" [ref=e117] [cursor=pointer]:
+            - /url: /stock/AMZN
+            - generic [ref=e118]: AMZN
+            - generic [ref=e119]: Amazon
+          - link "TSLA Tesla" [ref=e120] [cursor=pointer]:
+            - /url: /stock/TSLA
+            - generic [ref=e121]: TSLA
+            - generic [ref=e122]: Tesla
+          - link "NVDA NVIDIA" [ref=e123] [cursor=pointer]:
+            - /url: /stock/NVDA
+            - generic [ref=e124]: NVDA
+            - generic [ref=e125]: NVIDIA
+          - link "BITCOIN Bitcoin" [ref=e126] [cursor=pointer]:
+            - /url: /crypto/bitcoin
+            - generic [ref=e127]: BITCOIN
+            - generic [ref=e128]: Bitcoin
+          - link "ETHEREUM Ethereum" [ref=e129] [cursor=pointer]:
+            - /url: /crypto/ethereum
+            - generic [ref=e130]: ETHEREUM
+            - generic [ref=e131]: Ethereum
+  - region "Notifications alt+T"
+  - alert [ref=e22]
