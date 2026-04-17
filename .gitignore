@@ -48,3 +48,4 @@ docs/_private/
 
 # local tooling state
 .claude/
+.playwright-mcp/
