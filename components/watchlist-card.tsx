@@ -7,15 +7,23 @@ import { X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useWatchlist } from '@/lib/store/watchlist'
 import { formatCurrency, formatPercent, colorForValue } from '@/lib/format'
-import type { WatchlistItem } from '@/lib/types'
+import type { BatchOverviewEntry, WatchlistItem } from '@/lib/types'
 import { SparklineChart } from './sparkline-chart'
 
-export function WatchlistCard({ item }: { item: WatchlistItem }) {
+interface WatchlistCardProps {
+  item: WatchlistItem
+  initialData?: BatchOverviewEntry
+}
+
+export function WatchlistCard({ item, initialData }: WatchlistCardProps) {
   const router = useRouter()
   const removeItem = useWatchlist((s) => s.removeItem)
 
-  const { data: overview, isLoading } = useQuery({
+  const hasBatch = item.type === 'stock' && initialData !== undefined
+
+  const { data: overviewFallback, isLoading: overviewLoading } = useQuery({
     queryKey: ['watchlist-overview', item.ticker, item.type],
+    enabled: !hasBatch,
     queryFn: async () => {
       const url = item.type === 'crypto'
         ? `/api/crypto/${item.ticker}/overview`
@@ -27,8 +35,9 @@ export function WatchlistCard({ item }: { item: WatchlistItem }) {
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: history } = useQuery({
+  const { data: historyFallback } = useQuery({
     queryKey: ['watchlist-history', item.ticker, item.type],
+    enabled: !hasBatch,
     queryFn: async () => {
       const url = item.type === 'crypto'
         ? `/api/crypto/${item.ticker}/history?range=1m`
@@ -40,13 +49,18 @@ export function WatchlistCard({ item }: { item: WatchlistItem }) {
     staleTime: 10 * 60 * 1000,
   })
 
+  const overview = hasBatch ? initialData?.overview : overviewFallback
+  const isLoading = hasBatch ? false : overviewLoading
+
   const price = item.type === 'crypto' ? overview?.price : overview?.price
   const changePercent = item.type === 'crypto' ? overview?.changePercent24h : overview?.changePercent
   const name = overview?.name || item.name
 
-  const sparkData = item.type === 'crypto'
-    ? (Array.isArray(history?.prices) ? history.prices : []).map((p: { close: number }) => p.close)
-    : (Array.isArray(history) ? history : []).map((p: { close: number }) => p.close)
+  const sparkData: number[] = hasBatch
+    ? initialData?.sparkline ?? []
+    : item.type === 'crypto'
+      ? (Array.isArray(historyFallback?.prices) ? historyFallback.prices : []).map((p: { close: number }) => p.close)
+      : (Array.isArray(historyFallback) ? historyFallback : []).map((p: { close: number }) => p.close)
 
   function handleClick() {
     if (item.type === 'crypto') {

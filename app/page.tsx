@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { SearchBar } from '@/components/search-bar'
 import { WatchlistCard } from '@/components/watchlist-card'
 import { PortfolioCard } from '@/components/portfolio-card'
@@ -12,13 +13,34 @@ import { TrendingUp, Eye, Briefcase, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FadeIn } from '@/components/motion/fade-in'
 import { StaggerContainer, StaggerItem } from '@/components/motion/stagger-container'
-import type { PortfolioPosition } from '@/lib/types'
+import type { BatchOverviewResponse, PortfolioPosition } from '@/lib/types'
 
 export default function HomePage() {
   const items = useWatchlist((s) => s.items)
   const positions = usePortfolio((s) => s.positions)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPosition, setEditingPosition] = useState<PortfolioPosition | null>(null)
+
+  const stockTickers = useMemo(
+    () =>
+      items
+        .filter((i) => i.type === 'stock')
+        .map((i) => i.ticker.toUpperCase())
+        .sort()
+        .join(','),
+    [items],
+  )
+
+  const { data: batch } = useQuery<BatchOverviewResponse>({
+    queryKey: ['watchlist-batch', stockTickers],
+    enabled: stockTickers.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/batch/overview?tickers=${stockTickers}&spark=1m`, { signal })
+      if (!res.ok) throw new Error('batch failed')
+      return res.json()
+    },
+  })
 
   function handleEditPosition(pos: PortfolioPosition) {
     setEditingPosition(pos)
@@ -64,7 +86,10 @@ export default function HomePage() {
           <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {items.map((item) => (
               <StaggerItem key={item.ticker}>
-                <WatchlistCard item={item} />
+                <WatchlistCard
+                  item={item}
+                  initialData={item.type === 'stock' ? batch?.[item.ticker.toUpperCase()] : undefined}
+                />
               </StaggerItem>
             ))}
           </StaggerContainer>
