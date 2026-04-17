@@ -97,11 +97,11 @@ export function StockHeader({ ticker }: { ticker: string }) {
         <StaggerContainer className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <StaggerItem><MetricItem label="Market Cap" value={`$${formatLargeNumber(overview.marketCap)}`} /></StaggerItem>
           <StaggerItem><MetricItem label="P/E Ratio" value={safeFixed(overview.pe)} /></StaggerItem>
-          <StaggerItem><MetricItem label="EPS" value={overview.eps != null ? formatCurrency(overview.eps) : 'N/A'} /></StaggerItem>
+          <StaggerItem><MetricItem label="EPS" value={formatCurrency(overview.eps)} /></StaggerItem>
           <StaggerItem><MetricItem label="Beta" value={safeFixed(overview.beta)} /></StaggerItem>
           <StaggerItem><MetricItem label="52W High" value={formatCurrency(overview.week52High)} /></StaggerItem>
           <StaggerItem><MetricItem label="52W Low" value={formatCurrency(overview.week52Low)} /></StaggerItem>
-          <StaggerItem><MetricItem label="Div Yield" value={overview.dividendYield != null && !isNaN(overview.dividendYield) ? `${(overview.dividendYield * 100).toFixed(2)}%` : 'N/A'} /></StaggerItem>
+          <StaggerItem><MetricItem label="Div Yield" value={overview.dividendYield != null && !isNaN(overview.dividendYield) ? `${(overview.dividendYield * 100).toFixed(2)}%` : '—'} /></StaggerItem>
           <StaggerItem><MetricItem label="Shares Out" value={formatLargeNumber(overview.sharesOutstanding)} /></StaggerItem>
         </StaggerContainer>
       </div>
