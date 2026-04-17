@@ -2,21 +2,21 @@
 export interface StockOverview {
   ticker: string
   name: string
-  sector: string
-  industry: string
+  sector: string | null
+  industry: string | null
   description: string
   price: number
   change: number
   changePercent: number
-  marketCap: number
+  marketCap: number | null
   pe: number | null
   forwardPe: number | null
   eps: number | null
   dividendYield: number | null
   beta: number | null
-  week52High: number
-  week52Low: number
-  sharesOutstanding: number
+  week52High: number | null
+  week52Low: number | null
+  sharesOutstanding: number | null
   evToEbitda: number | null
   priceToSales: number | null
   priceToBook: number | null

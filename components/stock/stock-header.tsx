@@ -55,10 +55,10 @@ export function StockHeader({ ticker }: { ticker: string }) {
               <span className="font-mono-numbers text-lg text-muted-foreground">{overview.ticker}</span>
             </div>
             <div className="flex items-center gap-2 mb-4">
-              {overview.sector && overview.sector !== 'N/A' && (
+              {overview.sector && (
                 <Badge variant="secondary">{overview.sector}</Badge>
               )}
-              {overview.industry && overview.industry !== 'N/A' && (
+              {overview.industry && (
                 <Badge variant="outline" className="text-muted-foreground">{overview.industry}</Badge>
               )}
             </div>

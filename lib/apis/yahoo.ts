@@ -60,37 +60,34 @@ export async function getYahooQuote(ticker: string) {
   const stats = result.defaultKeyStatistics || {}
 
   return {
-    // Price data
     symbol: price.symbol || ticker,
     name: price.shortName || price.longName || ticker,
-    price: price.regularMarketPrice || 0,
-    change: price.regularMarketChange || 0,
-    changePercent: price.regularMarketChangePercent
-      ? price.regularMarketChangePercent * 100
-      : 0,
-    marketCap: price.marketCap || 0,
+    price: pickNumber(price.regularMarketPrice) ?? 0,
+    change: pickNumber(price.regularMarketChange) ?? 0,
+    changePercent: (() => {
+      const raw = pickNumber(price.regularMarketChangePercent)
+      return raw == null ? 0 : raw * 100
+    })(),
+    marketCap: pickNumber(price.marketCap),
 
-    // Profile
-    sector: profile.sector || 'N/A',
-    industry: profile.industry || 'N/A',
+    sector: profile.sector ?? null,
+    industry: profile.industry ?? null,
     description: profile.longBusinessSummary || '',
     website: profile.website || '',
 
-    // Valuation
-    pe: detail.trailingPE || null,
-    forwardPe: detail.forwardPE || null,
-    eps: stats.trailingEps || null,
-    dividendYield: detail.dividendYield || null,
-    beta: detail.beta || null,
-    week52High: detail.fiftyTwoWeekHigh || 0,
-    week52Low: detail.fiftyTwoWeekLow || 0,
-    priceToSales: detail.priceToSalesTrailing12Months || null,
-    priceToBook: stats.priceToBook || null,
-    pegRatio: stats.pegRatio || null,
-    enterpriseToEbitda: stats.enterpriseToEbitda || null,
+    pe: pickNumber(detail.trailingPE),
+    forwardPe: pickNumber(detail.forwardPE),
+    eps: pickNumber(stats.trailingEps),
+    dividendYield: pickNumber(detail.dividendYield),
+    beta: pickNumber(detail.beta),
+    week52High: pickNumber(detail.fiftyTwoWeekHigh),
+    week52Low: pickNumber(detail.fiftyTwoWeekLow),
+    priceToSales: pickNumber(detail.priceToSalesTrailing12Months),
+    priceToBook: pickNumber(stats.priceToBook),
+    pegRatio: pickNumber(stats.pegRatio),
+    enterpriseToEbitda: pickNumber(stats.enterpriseToEbitda),
 
-    // Shares
-    sharesOutstanding: stats.sharesOutstanding || 0,
+    sharesOutstanding: pickNumber(stats.sharesOutstanding),
   }
 }
 
