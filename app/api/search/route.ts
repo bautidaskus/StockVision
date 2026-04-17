@@ -2,7 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { searchSymbols } from '@/lib/apis/finnhub'
 import { searchYahoo } from '@/lib/apis/yahoo'
 import { searchCoins } from '@/lib/apis/coingecko'
+import { getCached, setCached, cacheKey } from '@/lib/cache/redis'
 import { createRequestPerformanceTracker, measureStage } from '@/lib/observability/performance'
+
+const MIN_QUERY_CHARS = 2
+const SEARCH_CACHE_TTL = 30
+
+interface SearchItem {
+  ticker: string
+  name: string
+  type: 'stock' | 'crypto'
+  exchange: string
+  image?: string
+}
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get('q') || ''
@@ -10,10 +22,17 @@ export async function GET(request: NextRequest) {
     query,
   })
 
-  if (query.length < 1) {
-    const payload: [] = []
-    perf.finish(payload, 200, { shortCircuit: 'empty-query' })
+  if (query.length < MIN_QUERY_CHARS) {
+    const payload: SearchItem[] = []
+    perf.finish(payload, 200, { shortCircuit: 'too-short' })
     return NextResponse.json(payload)
+  }
+
+  const sKey = cacheKey('search', query.toLowerCase())
+  const cached = await getCached<SearchItem[]>(sKey)
+  if (cached) {
+    perf.finish(cached, 200, { source: 'cache' })
+    return NextResponse.json(cached)
   }
 
   try {
@@ -69,6 +88,7 @@ export async function GET(request: NextRequest) {
       // Always show stocks first; limit crypto when stocks are present
       const cryptoLimit = stockResults.length > 0 ? 2 : 4
       const payload = [...stockResults, ...cryptoResults.slice(0, cryptoLimit)]
+      await setCached(sKey, payload, SEARCH_CACHE_TTL)
       perf.finish(payload, 200, {
         stockResults: stockResults.length,
         cryptoResults: cryptoResults.length,

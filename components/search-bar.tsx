@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Input } from '@/components/ui/input'
 import { Search, TrendingUp, Bitcoin } from 'lucide-react'
@@ -14,14 +15,15 @@ interface SearchResult {
   image?: string
 }
 
+const MIN_CHARS = 2
+const DEBOUNCE_MS = 250
+
 export function SearchBar() {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchResult[]>([])
+  const [rawQuery, setRawQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const router = useRouter()
   const ref = useRef<HTMLDivElement>(null)
-  const debounceRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -34,36 +36,36 @@ export function SearchBar() {
   }, [])
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (query.length < 1) {
-      setResults([])
+    const trimmed = rawQuery.trim()
+    const handle = setTimeout(() => setDebouncedQuery(trimmed), DEBOUNCE_MS)
+    return () => clearTimeout(handle)
+  }, [rawQuery])
+
+  const enabled = debouncedQuery.length >= MIN_CHARS
+  const { data: results = [], isFetching: loading } = useQuery<SearchResult[]>({
+    queryKey: ['search', debouncedQuery],
+    enabled,
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, { signal })
+      if (!res.ok) throw new Error('Search failed')
+      return res.json()
+    },
+  })
+
+  useEffect(() => {
+    if (!enabled) {
       setIsOpen(false)
       return
     }
-
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-        if (!res.ok) throw new Error('Search failed')
-        const data = await res.json()
-        setResults(data)
-        setIsOpen(true)
-      } catch {
-        setResults([])
-      } finally {
-        setLoading(false)
-      }
-    }, 300)
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [query])
+    if (results.length > 0) setIsOpen(true)
+  }, [enabled, results])
 
   function handleSelect(item: SearchResult) {
     setIsOpen(false)
-    setQuery('')
+    setRawQuery('')
+    setDebouncedQuery('')
     if (item.type === 'crypto') {
       router.push(`/crypto/${item.ticker}`)
     } else {
@@ -77,12 +79,12 @@ export function SearchBar() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <Input
           placeholder="Buscar por ticker o nombre (ej: AAPL, Bitcoin)..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={rawQuery}
+          onChange={(e) => setRawQuery(e.target.value)}
           className="pl-10 h-12 text-base bg-card border-border"
-          onFocus={() => results.length > 0 && setIsOpen(true)}
+          onFocus={() => enabled && results.length > 0 && setIsOpen(true)}
         />
-        {loading && (
+        {loading && enabled && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
