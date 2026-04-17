@@ -23,6 +23,14 @@ export interface StockOverview {
   pegRatio: number | null
 }
 
+// Batch overview (watchlist grid, home)
+export interface BatchOverviewEntry {
+  overview: StockOverview | null
+  sparkline: number[]
+}
+
+export type BatchOverviewResponse = Record<string, BatchOverviewEntry>
+
 // OHLCV candle
 export interface OHLCV {
   date: string
