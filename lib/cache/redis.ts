@@ -14,6 +14,7 @@ export const CACHE_TTL = {
   SCREENER: 3600,        // 1 hour
   SCORE: 21600,          // 6 hours
   UNIVERSE: 86400,       // 24 hours
+  FX: 900,               // 15 minutes
 } as const
 
 const OP_TIMEOUT_MS = 500
