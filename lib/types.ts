@@ -165,13 +165,20 @@ export interface InsiderData {
 }
 
 // Portfolio
+// averageCost semantics:
+//   stock/crypto → USD per unit
+//   cedear       → ARS per CEDEAR
 export interface PortfolioPosition {
   ticker: string
   name: string
-  type: 'stock' | 'crypto'
+  type: 'stock' | 'crypto' | 'cedear'
   quantity: number
   averageCost: number
   addedAt: number
+  /** CEDEAR ratio (shares per CEDEAR). Only used when type === 'cedear'. */
+  ratio?: number
+  /** Underlying US ticker for CEDEAR (e.g. AAPL for AAPL.BA). Only when type === 'cedear'. */
+  underlying?: string
 }
 
 // Analyst estimates

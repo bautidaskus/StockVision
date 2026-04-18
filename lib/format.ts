@@ -8,6 +8,16 @@ export function formatCurrency(value: number | null | undefined, decimals = 2): 
   }).format(value)
 }
 
+export function formatCurrencyArs(value: number | null | undefined, decimals = 0): string {
+  if (value == null || isNaN(value)) return '—'
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value)
+}
+
 export function formatLargeNumber(num: number | null | undefined): string {
   if (num == null || isNaN(num)) return '—'
   if (Math.abs(num) >= 1e12) return (num / 1e12).toFixed(2) + 'T'
