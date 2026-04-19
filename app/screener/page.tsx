@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal } from 'lucide-react'
+import { SectionHead } from '@/components/design/primitives'
 import { ScreenerFilters as FiltersPanel } from '@/components/screener-filters'
 import { ScreenerResults } from '@/components/screener-results'
 import { ScreenerPresetBar, type Preset } from '@/components/screener-preset-bar'
@@ -94,17 +94,12 @@ export default function ScreenerPage() {
   const isLoading = !baseQuery.data && baseQuery.isPending
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <SlidersHorizontal className="w-6 h-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Screener</h1>
-          <p className="text-sm text-muted-foreground">
-            Filtrá acciones por métricas fundamentales y técnicas
-          </p>
-        </div>
-      </div>
+    <div>
+      <SectionHead
+        title="<em>Screener</em>"
+        dangerouslyHtml
+        sub="Filtrá acciones por métricas fundamentales y técnicas"
+      />
 
       {/* Presets */}
       <ScreenerPresetBar

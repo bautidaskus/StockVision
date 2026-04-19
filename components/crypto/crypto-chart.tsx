@@ -42,16 +42,16 @@ export function CryptoChart({ id }: { id: string }) {
         width: containerRef.current.clientWidth,
         height: 400,
         layout: {
-          background: { color: '#1a1a1f' },
+          background: { color: '#ffffff' },
           textColor: '#71717a',
           fontSize: 12,
         },
         grid: {
-          vertLines: { color: '#2a2a3520' },
-          horzLines: { color: '#2a2a3520' },
+          vertLines: { color: '#e6e5df' },
+          horzLines: { color: '#e6e5df' },
         },
-        rightPriceScale: { borderColor: '#2a2a35' },
-        timeScale: { borderColor: '#2a2a35' },
+        rightPriceScale: { borderColor: '#d8d6ce' },
+        timeScale: { borderColor: '#d8d6ce' },
       })
 
       chartRef.current = chart
@@ -69,8 +69,8 @@ export function CryptoChart({ id }: { id: string }) {
       const isPositive = prices.length >= 2 && prices[prices.length - 1].value >= prices[0].value
 
       const areaSeries = chart.addSeries(AreaSeries, {
-        lineColor: isPositive ? '#00c896' : '#ff4757',
-        topColor: isPositive ? '#00c89633' : '#ff475733',
+        lineColor: isPositive ? '#2d7a5f' : '#b04a3a',
+        topColor: isPositive ? '#2d7a5f33' : '#b04a3a33',
         bottomColor: 'transparent',
         lineWidth: 2,
       })
@@ -89,7 +89,7 @@ export function CryptoChart({ id }: { id: string }) {
           .map(([date, volume]) => ({
             time: date,
             value: volume,
-            color: '#6366f133',
+            color: '#1e4d7533',
           }))
 
         const volumeSeries = chart.addSeries(HistogramSeries, {

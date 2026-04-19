@@ -1,12 +1,19 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useState } from 'react'
+import Link from 'next/link'
 import { CryptoHeader } from '@/components/crypto/crypto-header'
 import { CryptoChart } from '@/components/crypto/crypto-chart'
 import { AIAnalysisTab } from '@/components/stock/ai-analysis-tab'
-import { Card } from '@/components/ui/card'
-import { LineChart, Sparkles } from 'lucide-react'
+import { Card } from '@/components/design/primitives'
+
+const TABS = [
+  { id: 'chart', label: 'Gráfico' },
+  { id: 'analysis', label: 'Análisis IA' },
+] as const
+
+type TabId = typeof TABS[number]['id']
 
 export default function CryptoPage() {
   const params = useParams()
@@ -16,39 +23,42 @@ export default function CryptoPage() {
     : Array.isArray(rawId)
     ? rawId[0] || ''
     : ''
+  const [tab, setTab] = useState<TabId>('chart')
 
   if (!id) {
     return (
-      <Card className="p-6 bg-card border-border text-center text-muted-foreground">
+      <Card className="card-pad" style={{ textAlign: 'center', color: 'var(--fg-subtle)' }}>
         No se pudo resolver el identificador del activo.
       </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div>
+      <div className="flex items-center gap-2" style={{ fontSize: 12.5, marginBottom: 12 }}>
+        <Link href="/" className="muted" style={{ textDecoration: 'none' }}>Home</Link>
+        <span className="faint">/</span>
+        <span className="muted">Crypto</span>
+        <span className="faint">/</span>
+        <span>{id}</span>
+      </div>
+
       <CryptoHeader id={id} />
 
-      <Tabs defaultValue="chart" className="w-full flex-col">
-        <TabsList className="bg-card border border-border w-full justify-start">
-          <TabsTrigger value="chart" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <LineChart className="w-4 h-4" />
-            Gráfico
-          </TabsTrigger>
-          <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Sparkles className="w-4 h-4" />
-            Análisis IA
-          </TabsTrigger>
-        </TabsList>
+      <div className="sv-tabs" style={{ marginTop: 20 }}>
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            className={`sv-tab ${tab === t.id ? 'active' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="chart" className="mt-4">
-          <CryptoChart id={id} />
-        </TabsContent>
-
-        <TabsContent value="analysis" className="mt-4">
-          <AIAnalysisTab ticker={id} type="crypto" />
-        </TabsContent>
-      </Tabs>
+      {tab === 'chart' && <CryptoChart id={id} />}
+      {tab === 'analysis' && <AIAnalysisTab ticker={id} type="crypto" />}
     </div>
   )
 }

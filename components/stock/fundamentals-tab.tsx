@@ -69,8 +69,8 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
 
   const tooltipStyle = {
     contentStyle: {
-      backgroundColor: '#1a1a1f',
-      border: '1px solid #2a2a35',
+      backgroundColor: '#ffffff',
+      border: '1px solid #e6e5df',
       borderRadius: '8px',
       color: '#e4e4e7',
       fontSize: '12px',
@@ -154,7 +154,7 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Revenue & Net Income (Trimestral)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={revenueChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a35" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e6e5df" />
               <XAxis dataKey="quarter" tick={{ fill: '#71717a', fontSize: 11 }} />
               <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => `$${formatLargeNumber(v)}`} />
               <Tooltip
@@ -162,8 +162,8 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
                 formatter={(value) => value == null ? ['N/A', undefined] : [`$${formatLargeNumber(Number(value))}`, undefined]}
               />
               <Legend wrapperStyle={{ fontSize: '12px', color: '#71717a' }} />
-              <Bar dataKey="Revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Net Income" fill="#00c896" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Revenue" fill="#1e4d75" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Net Income" fill="#2d7a5f" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -175,14 +175,14 @@ export function FundamentalsTab({ ticker }: { ticker: string }) {
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">EPS (Trimestral)</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={epsChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a35" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e6e5df" />
               <XAxis dataKey="quarter" tick={{ fill: '#71717a', fontSize: 11 }} />
               <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => typeof v === 'number' && !isNaN(v) ? `$${v.toFixed(2)}` : ''} />
               <Tooltip
                 {...tooltipStyle}
                 formatter={(value) => value == null ? ['N/A', 'EPS'] : [formatCurrency(Number(value)), 'EPS']}
               />
-              <Bar dataKey="EPS" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="EPS" fill="#a88438" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>

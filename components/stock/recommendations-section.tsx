@@ -58,11 +58,11 @@ export function RecommendationsSection({ ticker }: { ticker: string }) {
 
   const latest = data.recommendations[0]
   const distributionData = [
-    { name: 'Compra Fuerte', value: latest.strongBuy, fill: '#00c896' },
+    { name: 'Compra Fuerte', value: latest.strongBuy, fill: '#2d7a5f' },
     { name: 'Compra', value: latest.buy, fill: '#4ade80' },
     { name: 'Mantener', value: latest.hold, fill: '#facc15' },
     { name: 'Vender', value: latest.sell, fill: '#f97316' },
-    { name: 'Venta Fuerte', value: latest.strongSell, fill: '#ff4757' },
+    { name: 'Venta Fuerte', value: latest.strongSell, fill: '#b04a3a' },
   ]
 
   const historyData = data.recommendations.slice(0, 4).reverse().map((rec) => ({
@@ -96,7 +96,7 @@ export function RecommendationsSection({ ticker }: { ticker: string }) {
             <XAxis type="number" stroke="#666" fontSize={12} />
             <YAxis type="category" dataKey="name" stroke="#666" fontSize={12} width={100} />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1a1a1f', border: '1px solid #2a2a35', borderRadius: 8 }}
+              contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e6e5df', borderRadius: 8 }}
               labelStyle={{ color: '#fff' }}
             />
             <Bar dataKey="value" radius={[0, 4, 4, 0]} />
@@ -115,15 +115,15 @@ export function RecommendationsSection({ ticker }: { ticker: string }) {
               <XAxis dataKey="period" stroke="#666" fontSize={12} />
               <YAxis stroke="#666" fontSize={12} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#1a1a1f', border: '1px solid #2a2a35', borderRadius: 8 }}
+                contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e6e5df', borderRadius: 8 }}
                 labelStyle={{ color: '#fff' }}
               />
               <Legend />
-              <Bar dataKey="Compra Fuerte" stackId="a" fill="#00c896" />
+              <Bar dataKey="Compra Fuerte" stackId="a" fill="#2d7a5f" />
               <Bar dataKey="Compra" stackId="a" fill="#4ade80" />
               <Bar dataKey="Mantener" stackId="a" fill="#facc15" />
               <Bar dataKey="Vender" stackId="a" fill="#f97316" />
-              <Bar dataKey="Venta Fuerte" stackId="a" fill="#ff4757" />
+              <Bar dataKey="Venta Fuerte" stackId="a" fill="#b04a3a" />
             </BarChart>
           </ResponsiveContainer>
         </Card>

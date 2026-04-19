@@ -87,17 +87,17 @@ export function EarningsSection({ ticker }: { ticker: string }) {
               <XAxis dataKey="quarter" stroke="#666" fontSize={12} />
               <YAxis stroke="#666" fontSize={12} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#1a1a1f', border: '1px solid #2a2a35', borderRadius: 8 }}
+                contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e6e5df', borderRadius: 8 }}
                 labelStyle={{ color: '#fff' }}
                 formatter={(value) => [`$${Number(value)?.toFixed(2) ?? 'N/A'}`]}
               />
               <Legend />
-              <Bar dataKey="EPS Estimado" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="EPS Estimado" fill="#1e4d75" radius={[4, 4, 0, 0]} />
               <Bar dataKey="EPS Real" radius={[4, 4, 0, 0]}>
                 {chartData.map((entry, index) => (
                   <Cell
                     key={index}
-                    fill={entry.beat === null ? '#666' : entry.beat ? '#00c896' : '#ff4757'}
+                    fill={entry.beat === null ? '#666' : entry.beat ? '#2d7a5f' : '#b04a3a'}
                   />
                 ))}
               </Bar>

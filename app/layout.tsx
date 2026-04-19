@@ -1,18 +1,27 @@
 import type { Metadata } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { Inter_Tight, JetBrains_Mono, Instrument_Serif } from 'next/font/google'
 import { Providers } from '@/components/providers'
-import { MobileNav } from '@/components/mobile-nav'
+import { AppShell } from '@/components/design/shell'
 import { Toaster } from 'sonner'
 import './globals.css'
 
-const inter = Inter({
+const inter = Inter_Tight({
   subsets: ['latin'],
   variable: '--font-sans',
+  weight: ['400', '500', '600'],
 })
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
+  weight: ['400', '500'],
+})
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  variable: '--font-serif-display',
+  weight: ['400'],
+  style: ['normal', 'italic'],
 })
 
 export const metadata: Metadata = {
@@ -26,32 +35,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="antialiased font-sans min-h-screen">
+    <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable} ${instrumentSerif.variable}`} data-theme="light" data-accent="blue" data-density="compact">
+      <body className="antialiased">
         <Providers>
-          <nav className="border-b border-border sticky top-0 z-50 bg-background/70 backdrop-blur-md">
-            <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-6">
-              <a href="/" className="flex items-center gap-2 font-semibold text-lg">
-                <span className="text-primary">SV</span>
-                <span>StockVision</span>
-              </a>
-              <div className="hidden md:flex items-center gap-6">
-                <a
-                  href="/screener"
-                  className="nav-link text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Screener
-                </a>
-              </div>
-              <div className="ml-auto md:hidden">
-                <MobileNav />
-              </div>
-            </div>
-          </nav>
-          <main className="max-w-7xl mx-auto px-4 py-6">
-            {children}
-          </main>
-          <Toaster position="bottom-right" theme="dark" richColors />
+          <AppShell>{children}</AppShell>
+          <Toaster position="bottom-right" richColors />
         </Providers>
       </body>
     </html>

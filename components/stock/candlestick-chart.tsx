@@ -11,9 +11,9 @@ import type { ISeriesApi } from 'lightweight-charts'
 
 const TIMEFRAMES = ['1M', '3M', '6M', '1Y', '3Y', '5Y'] as const
 const SMA_COLORS = {
-  sma20: '#f59e0b',
-  sma50: '#6366f1',
-  sma200: '#ec4899',
+  sma20: '#a88438',
+  sma50: '#1e4d75',
+  sma200: '#9a8b5f',
 } as const
 type SmaKey = keyof typeof SMA_COLORS
 
@@ -73,24 +73,24 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         const chart = createChart(containerRef.current, {
           width: containerRef.current.clientWidth,
           height: 400,
-          layout: { background: { color: '#1a1a1f' }, textColor: '#71717a', fontSize: 12 },
+          layout: { background: { color: '#ffffff' }, textColor: '#58574f', fontSize: 12 },
           grid: {
-            vertLines: { color: '#2a2a3520' },
-            horzLines: { color: '#2a2a3520' },
+            vertLines: { color: '#e6e5df' },
+            horzLines: { color: '#e6e5df' },
           },
           crosshair: { mode: 0 },
-          rightPriceScale: { borderColor: '#2a2a35' },
-          timeScale: { borderColor: '#2a2a35', timeVisible: false },
+          rightPriceScale: { borderColor: '#d8d6ce' },
+          timeScale: { borderColor: '#d8d6ce', timeVisible: false },
         })
         chartRef.current = chart
 
         const candleSeries = chart.addSeries(CandlestickSeries, {
-          upColor: '#00c896',
-          downColor: '#ff4757',
-          borderDownColor: '#ff4757',
-          borderUpColor: '#00c896',
-          wickDownColor: '#ff4757',
-          wickUpColor: '#00c896',
+          upColor: '#2d7a5f',
+          downColor: '#b04a3a',
+          borderDownColor: '#b04a3a',
+          borderUpColor: '#2d7a5f',
+          wickDownColor: '#b04a3a',
+          wickUpColor: '#2d7a5f',
         })
         candleSeries.setData(
           currentHistory.map((d) => ({
@@ -152,7 +152,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           currentHistory.map((d) => ({
             time: d.date,
             value: d.volume,
-            color: d.close >= d.open ? '#00c89633' : '#ff475733',
+            color: d.close >= d.open ? '#2d7a5f66' : '#b04a3a66',
           }))
         )
         volumeSeriesRef.current = series
@@ -235,16 +235,16 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           width: rsiContainerRef.current.clientWidth,
           height: 150,
           layout: {
-            background: { color: '#1a1a1f' },
-            textColor: '#71717a',
+            background: { color: '#ffffff' },
+            textColor: '#58574f',
             fontSize: 11,
           },
           grid: {
-            vertLines: { color: '#2a2a3520' },
-            horzLines: { color: '#2a2a3520' },
+            vertLines: { color: '#e6e5df' },
+            horzLines: { color: '#e6e5df' },
           },
-          rightPriceScale: { borderColor: '#2a2a35' },
-          timeScale: { borderColor: '#2a2a35', visible: false },
+          rightPriceScale: { borderColor: '#d8d6ce' },
+          timeScale: { borderColor: '#d8d6ce', visible: false },
         })
 
         rsiChartRef.current = chart
@@ -252,7 +252,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
         // RSI
         if (safeIndicators.rsi.length > 0) {
           const rsiSeries = chart.addSeries(LineSeries, {
-            color: '#6366f1',
+            color: '#1e4d75',
             lineWidth: 1,
             priceScaleId: 'rsi',
             lastValueVisible: true,
@@ -279,12 +279,12 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
               .map((d) => ({
                 time: d.date,
                 value: d.histogram,
-                color: d.histogram >= 0 ? '#00c89688' : '#ff475788',
+                color: d.histogram >= 0 ? '#2d7a5f88' : '#b04a3a88',
               }))
           )
 
           const macdLine = chart.addSeries(LineSeries, {
-            color: '#6366f1',
+            color: '#1e4d75',
             lineWidth: 1,
             priceScaleId: 'macd',
             lastValueVisible: false,
@@ -297,7 +297,7 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
           )
 
           const signalLine = chart.addSeries(LineSeries, {
-            color: '#f59e0b',
+            color: '#a88438',
             lineWidth: 1,
             priceScaleId: 'macd',
             lastValueVisible: false,
@@ -426,13 +426,13 @@ export function CandlestickChart({ ticker }: { ticker: string }) {
       {/* RSI + MACD legend */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#6366f1]" /> RSI (14)
+          <span className="w-2 h-2 rounded-full bg-[var(--accent)]" /> RSI (14)
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#6366f1]" /> MACD
+          <span className="w-2 h-2 rounded-full bg-[var(--accent)]" /> MACD
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#f59e0b]" /> Signal
+          <span className="w-2 h-2 rounded-full bg-[var(--warn)]" /> Signal
         </span>
       </div>
       <div ref={rsiContainerRef} className="rounded-lg overflow-hidden border border-border" />
