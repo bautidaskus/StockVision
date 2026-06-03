@@ -9,7 +9,9 @@ import { usePortfolio } from '@/lib/store/portfolio'
 import { AddPositionDialog } from '@/components/add-position-dialog'
 import { Card, SectionHead, Delta, SymbolMark, Flag, Eyebrow, Chip, Sparkline, genSpark } from '@/components/design/primitives'
 import type { BatchOverviewResponse, PortfolioPosition } from '@/lib/types'
-import { formatCurrency, formatPercent } from '@/lib/format'
+import { formatCurrency, formatCurrencyArs, formatPercent } from '@/lib/format'
+import { useMep } from '@/lib/hooks/use-mep'
+import { valuePortfolioPosition, type DisplayCurrency } from '@/lib/portfolio/valuation'
 
 const MOCK_MARKETS = [
   { name: 'S&P 500', last: 5870.24, ch: 0.42 },
@@ -21,13 +23,21 @@ const MOCK_MARKETS = [
 ]
 
 type Enriched = PortfolioPosition & {
-  price: number
-  value: number
+  displayCurrency: DisplayCurrency
+  price: number | null
+  value: number | null
   cost: number
-  pl: number
-  plPct: number
+  pl: number | null
+  plPct: number | null
+  valueUsd: number | null
+  costUsd: number | null
+  plUsd: number | null
   dayPct: number
   sparkSeed: number
+}
+
+function formatMoney(value: number | null | undefined, currency: DisplayCurrency) {
+  return currency === 'ARS' ? formatCurrencyArs(value) : formatCurrency(value)
 }
 
 export default function HomePage() {
@@ -54,26 +64,25 @@ export default function HomePage() {
     },
   })
 
+  const { data: mep } = useMep()
+
   const enriched: Enriched[] = useMemo(() => {
     return positions.map((p, i) => {
       const key = (p.underlying || p.ticker).toUpperCase()
       const ov = batch?.[key]?.overview
-      const priceUsd = ov?.price ?? p.averageCost
+      const marketPriceUsd = p.type === 'cedear' ? ov?.price : (ov?.price ?? p.averageCost)
       const dayPct = ov?.changePercent ?? 0
-      const value = p.quantity * priceUsd
-      const cost = p.quantity * p.averageCost
-      const pl = value - cost
-      const plPct = cost > 0 ? (pl / cost) * 100 : 0
-      return { ...p, price: priceUsd, value, cost, pl, plPct, dayPct, sparkSeed: i }
+      const valuation = valuePortfolioPosition(p, marketPriceUsd, mep?.mid)
+      return { ...p, ...valuation, dayPct, sparkSeed: i }
     })
-  }, [positions, batch])
+  }, [positions, batch, mep?.mid])
 
   const portfolioStats = useMemo(() => {
-    const totalValue = enriched.reduce((s, p) => s + p.value, 0)
-    const totalCost = enriched.reduce((s, p) => s + p.cost, 0)
+    const totalValue = enriched.reduce((s, p) => s + (p.valueUsd ?? 0), 0)
+    const totalCost = enriched.reduce((s, p) => s + (p.costUsd ?? 0), 0)
     const totalPL = totalValue - totalCost
     const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0
-    const todayPL = enriched.reduce((s, p) => s + (p.value * p.dayPct) / 100, 0)
+    const todayPL = enriched.reduce((s, p) => s + ((p.valueUsd ?? 0) * p.dayPct) / 100, 0)
     const todayPLPct = totalValue > 0 ? (todayPL / totalValue) * 100 : 0
     const best = enriched.reduce<Enriched | null>((b, p) => (!b || p.dayPct > b.dayPct ? p : b), null)
     return { totalValue, totalCost, totalPL, totalPLPct, todayPL, todayPLPct, best }
@@ -240,21 +249,21 @@ export default function HomePage() {
                     </div>
                   </td>
                   <td className="r mono">{pos.quantity < 10 ? pos.quantity.toFixed(4) : pos.quantity}</td>
-                  <td className="r mono">{formatCurrency(pos.price)}</td>
+                  <td className="r mono">{formatMoney(pos.price, pos.displayCurrency)}</td>
                   <td className={`r mono ${pos.dayPct >= 0 ? 'pos' : 'neg'}`}>
                     {pos.dayPct >= 0 ? '+' : ''}{pos.dayPct.toFixed(2)}%
                   </td>
-                  <td className="r mono">{formatCurrency(pos.value)}</td>
+                  <td className="r mono">{formatMoney(pos.value, pos.displayCurrency)}</td>
                   <td className="r">
-                    <div className={`mono ${pos.pl >= 0 ? 'pos' : 'neg'}`}>
-                      {pos.pl >= 0 ? '+' : ''}{formatCurrency(pos.pl)}
+                    <div className={`mono ${(pos.pl ?? 0) >= 0 ? 'pos' : 'neg'}`}>
+                      {(pos.pl ?? 0) >= 0 && pos.pl != null ? '+' : ''}{formatMoney(pos.pl, pos.displayCurrency)}
                     </div>
-                    <div className={`mono ${pos.pl >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 11, opacity: 0.75 }}>
+                    <div className={`mono ${(pos.pl ?? 0) >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 11, opacity: 0.75 }}>
                       {formatPercent(pos.plPct)}
                     </div>
                   </td>
                   <td>
-                    <Sparkline data={genSpark(20, pos.plPct > 0 ? 1 : -1, pos.sparkSeed)} width={100} height={24} />
+                    <Sparkline data={genSpark(20, (pos.plPct ?? 0) > 0 ? 1 : -1, pos.sparkSeed)} width={100} height={24} />
                   </td>
                   <td>
                     <button

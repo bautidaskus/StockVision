@@ -121,4 +121,41 @@ describe('Portfolio Store', () => {
     expect(positions[0].type).toBe('crypto')
     expect(positions[0].quantity).toBe(2)
   })
+
+  it('updates CEDEAR metadata when upserting an existing position', () => {
+    usePortfolio.getState().addPosition({
+      ticker: 'AAPL.BA',
+      name: 'Apple',
+      type: 'cedear',
+      quantity: 10,
+      averageCost: 17500,
+      ratio: 20,
+      underlying: 'AAPL',
+    })
+
+    const addedAt = usePortfolio.getState().positions[0].addedAt
+
+    usePortfolio.getState().addPosition({
+      ticker: 'AAPL.BA',
+      name: 'Apple CEDEAR',
+      type: 'cedear',
+      quantity: 12,
+      averageCost: 18000,
+      ratio: 10,
+      underlying: 'AAPL',
+    })
+
+    const positions = usePortfolio.getState().positions
+    expect(positions).toHaveLength(1)
+    expect(positions[0]).toMatchObject({
+      ticker: 'AAPL.BA',
+      name: 'Apple CEDEAR',
+      type: 'cedear',
+      quantity: 12,
+      averageCost: 18000,
+      ratio: 10,
+      underlying: 'AAPL',
+    })
+    expect(positions[0].addedAt).toBe(addedAt)
+  })
 })

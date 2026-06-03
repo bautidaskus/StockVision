@@ -8,17 +8,27 @@ import { usePortfolio } from '@/lib/store/portfolio'
 import { AddPositionDialog } from '@/components/add-position-dialog'
 import { Card, SectionHead, SymbolMark, Flag, Eyebrow } from '@/components/design/primitives'
 import type { BatchOverviewResponse, PortfolioPosition } from '@/lib/types'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatCurrencyArs } from '@/lib/format'
+import { useMep } from '@/lib/hooks/use-mep'
+import { valuePortfolioPosition, type DisplayCurrency } from '@/lib/portfolio/valuation'
 
 type SortKey = 'ticker' | 'quantity' | 'price' | 'value' | 'pl' | 'plPct'
 type SortDir = 'asc' | 'desc'
 
 type Enriched = PortfolioPosition & {
-  price: number
-  value: number
+  displayCurrency: DisplayCurrency
+  price: number | null
+  value: number | null
   cost: number
-  pl: number
-  plPct: number
+  pl: number | null
+  plPct: number | null
+  valueUsd: number | null
+  costUsd: number | null
+  plUsd: number | null
+}
+
+function formatMoney(value: number | null | undefined, currency: DisplayCurrency) {
+  return currency === 'ARS' ? formatCurrencyArs(value) : formatCurrency(value)
 }
 
 export default function PortfolioPage() {
@@ -52,28 +62,27 @@ export default function PortfolioPage() {
     },
   })
 
+  const { data: mep } = useMep()
+
   const rows: Enriched[] = useMemo(() => {
     const list = positions.map((p) => {
       const key = (p.underlying || p.ticker).toUpperCase()
-      const price = batch?.[key]?.overview?.price ?? p.averageCost
-      const value = p.quantity * price
-      const cost = p.quantity * p.averageCost
-      const pl = value - cost
-      const plPct = cost > 0 ? (pl / cost) * 100 : 0
-      return { ...p, price, value, cost, pl, plPct }
+      const marketPriceUsd = p.type === 'cedear' ? batch?.[key]?.overview?.price : (batch?.[key]?.overview?.price ?? p.averageCost)
+      const valuation = valuePortfolioPosition(p, marketPriceUsd, mep?.mid)
+      return { ...p, ...valuation }
     })
     list.sort((a, b) => {
-      const av = a[sort.k as keyof Enriched] as number | string
-      const bv = b[sort.k as keyof Enriched] as number | string
+      const av = sort.k === 'value' ? (a.valueUsd ?? 0) : sort.k === 'pl' ? (a.plUsd ?? 0) : (a[sort.k as keyof Enriched] ?? 0) as number | string
+      const bv = sort.k === 'value' ? (b.valueUsd ?? 0) : sort.k === 'pl' ? (b.plUsd ?? 0) : (b[sort.k as keyof Enriched] ?? 0) as number | string
       if (av === bv) return 0
       return (av < bv ? 1 : -1) * (sort.dir === 'desc' ? 1 : -1)
     })
     return list
-  }, [positions, batch, sort])
+  }, [positions, batch, mep?.mid, sort])
 
   const totals = useMemo(() => {
-    const totalValue = rows.reduce((s, p) => s + p.value, 0)
-    const totalCost = rows.reduce((s, p) => s + p.cost, 0)
+    const totalValue = rows.reduce((s, p) => s + (p.valueUsd ?? 0), 0)
+    const totalCost = rows.reduce((s, p) => s + (p.costUsd ?? 0), 0)
     const totalPL = totalValue - totalCost
     const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0
     return { totalValue, totalCost, totalPL, totalPLPct }
@@ -83,7 +92,7 @@ export default function PortfolioPage() {
     const m = new Map<string, number>()
     rows.forEach((p) => {
       const k = p.type === 'cedear' ? 'CEDEARs (AR)' : p.type === 'crypto' ? 'Crypto' : 'Stocks US'
-      m.set(k, (m.get(k) || 0) + p.value)
+      m.set(k, (m.get(k) || 0) + (p.valueUsd ?? 0))
     })
     return Array.from(m.entries()).map(([k, v]) => ({ k, v }))
   }, [rows])
@@ -177,8 +186,10 @@ export default function PortfolioPage() {
             </thead>
             <tbody>
               {rows.map((pos) => {
-                const pctP = totals.totalValue > 0 ? (pos.value / totals.totalValue) * 100 : 0
-                const href = pos.type === 'crypto' ? `/crypto/${pos.ticker.toLowerCase()}` : `/stock/${pos.ticker}`
+                const pctP = totals.totalValue > 0 ? ((pos.valueUsd ?? 0) / totals.totalValue) * 100 : 0
+                const href = pos.type === 'crypto'
+                  ? `/crypto/${pos.ticker.toLowerCase()}`
+                  : `/stock/${pos.type === 'cedear' ? (pos.underlying || pos.ticker.replace(/\.BA$/, '')) : pos.ticker}`
                 return (
                   <tr className="row" key={pos.ticker}>
                     <td>
@@ -195,14 +206,16 @@ export default function PortfolioPage() {
                       </Link>
                     </td>
                     <td className="r mono">{pos.quantity < 10 ? pos.quantity.toFixed(4) : pos.quantity}</td>
-                    <td className="r mono muted">{formatCurrency(pos.averageCost)}</td>
-                    <td className="r mono">{formatCurrency(pos.price)}</td>
-                    <td className="r mono">{formatCurrency(pos.value)}</td>
-                    <td className={`r mono ${pos.pl >= 0 ? 'pos' : 'neg'}`}>
-                      {pos.pl >= 0 ? '+' : ''}{formatCurrency(pos.pl)}
+                    <td className="r mono muted">{formatMoney(pos.averageCost, pos.displayCurrency)}</td>
+                    <td className="r mono">{formatMoney(pos.price, pos.displayCurrency)}</td>
+                    <td className="r mono">{formatMoney(pos.value, pos.displayCurrency)}</td>
+                    <td className={`r mono ${(pos.pl ?? 0) >= 0 ? 'pos' : 'neg'}`}>
+                      {(pos.pl ?? 0) >= 0 && pos.pl != null ? '+' : ''}{formatMoney(pos.pl, pos.displayCurrency)}
                     </td>
-                    <td className={`r mono ${pos.plPct >= 0 ? 'pos' : 'neg'}`}>
-                      {pos.plPct >= 0 ? '+' : ''}{pos.plPct.toFixed(2)}%
+                    <td className={`r mono ${(pos.plPct ?? 0) >= 0 ? 'pos' : 'neg'}`}>
+                      {pos.plPct != null
+                        ? `${pos.plPct >= 0 ? '+' : ''}${pos.plPct.toFixed(2)}%`
+                        : '—'}
                     </td>
                     <td style={{ minWidth: 140 }}>
                       <div className="flex items-center gap-2">

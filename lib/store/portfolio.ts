@@ -24,7 +24,7 @@ export const usePortfolio = create<PortfolioState>()(
           set((state) => ({
             positions: state.positions.map((p) =>
               p.ticker === pos.ticker
-                ? { ...p, quantity: pos.quantity, averageCost: pos.averageCost }
+                ? { ...pos, addedAt: p.addedAt }
                 : p
             ),
           }))

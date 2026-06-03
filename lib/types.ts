@@ -175,7 +175,7 @@ export interface PortfolioPosition {
   quantity: number
   averageCost: number
   addedAt: number
-  /** CEDEAR ratio (shares per CEDEAR). Only used when type === 'cedear'. */
+  /** CEDEAR ratio: CEDEARs needed to represent one underlying share. Only used when type === 'cedear'. */
   ratio?: number
   /** Underlying US ticker for CEDEAR (e.g. AAPL for AAPL.BA). Only when type === 'cedear'. */
   underlying?: string
